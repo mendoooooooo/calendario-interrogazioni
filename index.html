@@ -52,7 +52,7 @@ ol,ul.l{list-style:none;padding:0;margin:0;text-align:left}
 table{border-collapse:collapse;width:100%;min-width:max-content}
 th{background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;padding:12px 16px;white-space:nowrap}
 td{padding:11px 16px;border-bottom:1px solid var(--bd);background:var(--card);transition:background .1s ease-out;white-space:nowrap}
-td:hover{background:var(--bd)}
+@media(hover:hover){td:hover{background:var(--bd)}}
 td.flash{animation:fl 1.4s}
 @keyframes fl{0%,60%{background:#fde68a;color:#000}}
 .ov{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;z-index:9;animation:fi .25s;padding:20px}
@@ -156,6 +156,7 @@ h1{overflow-wrap:anywhere}
 .log-s span{opacity:.7;margin:0 2px}
 .log-mid{grid-row:1/span 2}
 .log-r{grid-row:1/span 2;text-align:right;font-size:.85rem;line-height:1.5}
+.log-nd{opacity:.65;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
 .log-empty{text-align:center;opacity:.8}
 .log-card .sec{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25)}
 .sync{position:fixed;left:50%;bottom:calc(8px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:5;font-size:.7rem;padding:4px 12px;border-radius:99px;background:rgba(15,23,42,.6);color:#fff;pointer-events:none;white-space:nowrap}
@@ -355,13 +356,15 @@ function saveL(nuova){
 }
 function useL(i){S.li=i;$('#ln').value=ld(K.l)[i].nome;S.studs=ld(K.l)[i].s.map(x=>({...x})).sort((a,b)=>a.c.localeCompare(b.c,'it')||a.n.localeCompare(b.n,'it'));rl();rsl();window.scrollTo({top:0,behavior:'smooth'})}
 /* configurazione */
+const todayStr=()=>{const t=new Date();return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0')};
+function errG(id,m){const e=$('#'+id);if(!e)return;e.textContent=m;e.classList.remove('err');void e.offsetWidth;e.classList.add('err')}
 function cfg(){
   if(S.edit)return errL('Errore: premi "Salva" sullo studente in modifica prima di continuare.');
-  if(!S.studs.length)return alert('Aggiungi almeno uno studente');
+  if(!S.studs.length)return errL('Errore: aggiungi almeno uno studente prima di continuare.');
   rt('cfg',[]);
   const dn=[['Lunedì',1],['Martedì',2],['Mercoledì',3],['Giovedì',4],['Venerdì',5],['Sabato',6]];
-  show(`<h2>Quando si interroga? (${T(S.mat)})</h2><div class="card"><p>Giorni di interrogazione</p><div class="row" style="margin:8px 0">${dn.map(d=>`<label class="chk"><input type="checkbox" class="dd" value="${d[1]}"> ${d[0]}</label>`).join('')}</div>
-  <p>Data di inizio</p><input type="date" id="sd" oninput="$('#err').textContent=''"><p id="err" class="err"></p><p>Interrogati per lezione</p><input type="number" id="pp" min="1" value="2" style="width:100px"></div>
+  show(`<h2>Quando si interroga? (${T(S.mat)})</h2><div class="card"><p>Giorni di interrogazione</p><div class="row" style="margin:8px 0">${dn.map(d=>`<label class="chk"><input type="checkbox" class="dd" value="${d[1]}" onchange="$('#derr').textContent=''"> ${d[0]}</label>`).join('')}</div><p id="derr" class="err"></p>
+  <p>Data di inizio</p><input type="date" id="sd" min="${todayStr()}" oninput="$('#err').textContent=''"><p id="err" class="err"></p><p>Interrogati per lezione</p><input type="number" id="pp" min="1" value="2" style="width:100px"></div>
   <div class="row"><button class="sec" onclick="crea('${S.mat}',1)">← Indietro</button><button onclick="gen()">Genera calendario</button></div>`);
 }
 const DN=['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
@@ -374,8 +377,10 @@ function warnGen(msg){
 }
 function gen(force){
   const days=[...document.querySelectorAll('.dd:checked')].map(x=>+x.value),sd=$('#sd').value,pp=Math.max(1,+$('#pp').value||1);
-  if(!days.length)return alert('Scegli almeno un giorno');
-  if(!sd)return alert('Scegli la data di inizio');
+  $('#derr').textContent='';$('#err').textContent='';
+  if(!days.length)return errG('derr','Errore: scegli almeno un giorno di interrogazione.');
+  if(!sd)return errG('err','Errore: scegli la data di inizio.');
+  if(sd<todayStr())return errG('err','Errore: la data di inizio non può essere nel passato. Scegli oggi o una data futura.');
   let d=new Date(sd+'T12:00:00');
   if(!days.includes(d.getDay())){
     const N=['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'],e=$('#err');
@@ -455,7 +460,7 @@ function showLog(id){
   const c=ld(K.c).find(x=>x.id===id);if(!c)return;
   const L=c.log||[];
   const o=document.createElement('div');o.className='ov';
-  o.innerHTML=`<div class="log-card"><h3>Modifiche effettuate</h3><div class="log-list">${L.length?L.map((m,i)=>`<div class="log-item" style="animation-delay:${i*50}ms"><div class="log-n">${i+1}</div><div class="log-mid"><div class="log-t">Scambio</div><div class="log-s">${esc(m.c1)} <span>→</span> ${esc(m.c2)}</div></div><div class="log-r"><div>${esc(m.c1)}: ${fmt(m.d1)}</div><div>${esc(m.c2)}: ${fmt(m.d2)}</div></div></div>`).join(''):'<p class="log-empty">Nessuna modifica effettuata.</p>'}</div><div class="row"><button class="sec" id="lb">← Indietro</button></div></div>`;
+  o.innerHTML=`<div class="log-card"><h3>Modifiche effettuate</h3><div class="log-list">${L.length?L.map((m,i)=>`<div class="log-item" style="animation-delay:${i*50}ms"><div class="log-n">${i+1}</div><div class="log-mid"><div class="log-t">Scambio</div><div class="log-s">${esc(m.c1)} <span>→</span> ${esc(m.c2)}</div></div><div class="log-r"><div class="log-nd">Nuove date:</div><div>${esc(m.c1)}: ${fmt(m.d1)}</div><div>${esc(m.c2)}: ${fmt(m.d2)}</div></div></div>`).join(''):'<p class="log-empty">Nessuna modifica effettuata.</p>'}</div><div class="row"><button class="sec" id="lb">← Indietro</button></div></div>`;
   document.body.appendChild(o);
   o.querySelector('#lb').onclick=()=>o.remove();
   o.onclick=e=>{if(e.target===o)o.remove()};
