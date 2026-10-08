@@ -195,8 +195,11 @@ h1{overflow-wrap:anywhere}
 .menu button{white-space:nowrap}
 .cal{overflow-wrap:anywhere}
 .hero button.main{transition:filter .35s ease,transform .2s,box-shadow .2s}
-.hero button.main.dim:not(:disabled){filter:brightness(.68) saturate(.85)}
-.hero button.main.dim:not(:disabled):hover{filter:brightness(.85)}
+.hero button.main.dim1:not(:disabled){filter:brightness(.86)}
+.hero button.main.dim1:not(:disabled):hover{filter:brightness(.93)}
+.hero button.main.dim2:not(:disabled){filter:brightness(.68) saturate(.85)}
+.hero button.main.dim2:not(:disabled):hover{filter:brightness(.85)}
+.prob-list input[type=radio]{width:18px;height:18px;padding:0;accent-color:#2563eb;flex:0 0 auto}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -256,7 +259,7 @@ async function loadServer(){
 }
 const isEnter=e=>e.key==='Enter'||e.keyCode===13;
 let S={mat:null,studs:[],cfg:null},mem=null,CUR=null,curKey=null,restoring=false,rz=null;
-let ACC={c:'',adm:false,ok:[]};
+let ACC={c:'',adm:false,prof:false,ok:[]};
 try{const a=JSON.parse(sessionStorage.getItem('ci_acc'));if(a)ACC=Object.assign(ACC,a)}catch(e){}
 const saveAcc=()=>{try{sessionStorage.setItem('ci_acc',JSON.stringify(ACC))}catch(e){}};
 const fmt=d=>new Date(d).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'});
@@ -291,12 +294,12 @@ const mats=()=>{let r=DATA[K.s];
   try{return JSON.parse(r)}catch(e){return['italiano','storia']}};
 function pick(mode){
   const f=mode==='crea'?'crea':'lista';
-  document.querySelectorAll('.hero button.main').forEach(b=>b.classList.add('dim'));
+  document.querySelectorAll('.hero button.main').forEach(b=>{const clicked=(mode==='crea')===!b.id;b.classList.remove('dim1','dim2');b.classList.add(clicked?'dim1':'dim2')});
   $('#sub').innerHTML=`<div class="view"><h2>${mode==='crea'?'Per quale materia?':'Quali calendari?'}</h2><div class="row">${mats().map(m=>`<button onclick="${f}('${m}')">${esc(T(m))}</button>`).join('')}</div><div class="row small">${mode==='crea'?'<button class="sec" onclick="addM()">+ Aggiungi materia</button><button class="sec" onclick="delM()">− Elimina materia</button>':''}<button class="sec" onclick="closeSub()">Indietro</button></div><div id="am"></div></div>`;
 }
 function closeSub(){
   const v=document.querySelector('#sub .view');if(!v)return;
-  document.querySelectorAll('.hero button.main').forEach(b=>b.classList.remove('dim'));
+  document.querySelectorAll('.hero button.main').forEach(b=>b.classList.remove('dim1','dim2'));
   v.classList.add('out');setTimeout(()=>{$('#sub').innerHTML=''},330);
 }
 function addM(){
@@ -416,23 +419,27 @@ function gate(o){
     box.innerHTML='<h3 class="ok">✅ Perfetto!</h3><p class="mut">Accesso consentito.</p>';
     setTimeout(()=>{ov.classList.add('fade');setTimeout(()=>{close();o.onOk(act)},650)},1000);
   };
-  const adminMenu=()=>{
-    box.innerHTML='<h3>Bentornato Mirko 👋</h3><p class="mut">Cosa vuoi fare?</p><div class="row"><button id="gv">Visualizza lista</button><button class="sec" id="gm">Modifica probabilità</button></div><div class="row"><button class="sec" id="gc">Chiudi</button></div>';
-    box.querySelector('#gv').onclick=()=>{close();o.onOk('view')};
-    box.querySelector('#gm').onclick=()=>{close();if(o.onProb)o.onProb()};
-    box.querySelector('#gc').onclick=close;
+  const ask0=()=>{
+    box.innerHTML='<h3>Chi sei?</h3><p class="mut">Scegli come vuoi accedere.</p><div class="row"><button id="rs1">Studente</button><button id="rp1">Professore</button></div><div class="row"><button class="sec" id="gx">Annulla</button></div>';
+    box.querySelector('#rs1').onclick=()=>ask('s');
+    box.querySelector('#rp1').onclick=()=>ask('p');
+    box.querySelector('#gx').onclick=close;
   };
-  const ask=()=>{
-    box.innerHTML='<h3>Chi sei?</h3><p class="mut">Scrivi il tuo cognome per continuare.</p><div class="row"><input id="gs" placeholder="Il tuo cognome" autocomplete="off" enterkeyhint="done"></div><p id="ge" class="err"></p><div class="row"><button class="sec" id="gx">Annulla</button><button id="gk">Continua</button></div>';
+  const ask=role=>{
+    box.innerHTML='<h3>'+(role==='p'?'Accesso professore':'Accesso studente')+'</h3><p class="mut">'+(role==='p'?'Scrivi il tuo cognome per accedere come professore.':'Scrivi il tuo cognome per continuare.')+'</p><div class="row"><input id="gs" placeholder="Il tuo cognome" autocomplete="off" enterkeyhint="done"></div><p id="ge" class="err"></p><div class="row"><button class="sec" id="gx">← Indietro</button><button id="gk">Continua</button></div>';
     const inp=box.querySelector('#gs'),ge=box.querySelector('#ge');
     const go=()=>{
       const rw=inp.value.trim(),v=rw.toLowerCase();
       if(!v)return showErr(ge,'Errore: scrivi il tuo cognome.');
       if(v==='menditto')return askPw();
-      if(o.check(v)){ACC.c=v;ACC.adm=false;saveAcc();done(o.mode)}
+      if(role==='p'){
+        if(v==='presciutti'){ACC.prof=true;ACC.adm=false;ACC.c='';saveAcc();return done(o.mode)}
+        return showErr(ge,'Errore: "'+rw+'" non risulta tra i professori autorizzati.');
+      }
+      if(o.check(v)){ACC.c=v;ACC.adm=false;ACC.prof=false;saveAcc();done(o.mode)}
       else showErr(ge,o.errMsg(rw));
     };
-    box.querySelector('#gk').onclick=go;box.querySelector('#gx').onclick=close;
+    box.querySelector('#gk').onclick=go;box.querySelector('#gx').onclick=ask0;
     inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();go()}};inp.oninput=()=>{ge.textContent=''};inp.focus();
   };
   const askPw=()=>{
@@ -440,37 +447,45 @@ function gate(o){
     const inp=box.querySelector('#gp'),ge=box.querySelector('#ge');
     const go=()=>{
       if(inp.value!==ADMIN_PW)return showErr(ge,'Errore: password errata.');
-      ACC.adm=true;ACC.c='';saveAcc();
-      if(!o.admin||o.mode!=='view')return done(o.mode);
-      adminMenu();
+      ACC.adm=true;ACC.c='';ACC.prof=false;saveAcc();
+      done(o.mode);
     };
-    box.querySelector('#gk').onclick=go;box.querySelector('#gb').onclick=ask;
+    box.querySelector('#gk').onclick=go;box.querySelector('#gb').onclick=()=>ask('s');
     inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();go()}};inp.oninput=()=>{ge.textContent=''};inp.focus();
   };
   ov.onclick=e=>{if(e.target===ov)close()};
-  if(ACC.adm&&o.admin&&o.mode==='view')adminMenu();else ask();
+  ask0();
 }
 function cambiaNome(){
-  const had=ACC.c||ACC.adm;
-  ACC={c:'',adm:false,ok:[]};saveAcc();
+  const had=ACC.c||ACC.adm||ACC.prof;
+  ACC={c:'',adm:false,prof:false,ok:[]};saveAcc();
   if(S.li!=null&&S.show!==false){S.show=false;rl()}
   const ok=$('#lsuccess');
   if(ok){ok.textContent=had?'Nome azzerato: al prossimo accesso ti verrà richiesto il cognome ✓':'Non c\'è nessun cognome inserito al momento.';ok.classList.remove('success');void ok.offsetWidth;ok.classList.add('success')}
 }
 function selL(i,mode){
   const L=ld(K.l)[i];if(!L)return;
-  if(ACC.adm&&mode==='sel')return useL(i,false);
-  if(!ACC.adm&&ACC.c){
+  if(ACC.adm||ACC.prof)return useL(i,mode==='view');
+  if(ACC.c){
     if(L.s.some(x=>x.c.trim().toLowerCase()===ACC.c))return useL(i,mode==='view');
     return denied('questa lista','visualizzarla',()=>selL(i,mode));
   }
-  gate({mode,admin:true,
+  gate({mode,
     check:v=>L.s.some(x=>x.c.trim().toLowerCase()===v),
     errMsg:n=>'Errore: il cognome "'+n+'" non risulta in questa lista. Per motivi di privacy non puoi visualizzarla.',
-    onOk:act=>useL(i,act==='view'),
-    onProb:()=>probCard(i)});
+    onOk:act=>useL(i,act==='view')});
+}
+function adminCard(i){
+  const ov=document.createElement('div');ov.className='ov';
+  ov.innerHTML='<div class="card delete-card gate"><h3>Bentornato Mirko 👋</h3><p class="mut">Cosa vuoi fare?</p><div class="row"><button id="gv">Visualizza lista</button><button class="sec" id="gm">Modifica probabilità</button></div><div class="row"><button class="sec" id="gc">Chiudi</button></div></div>';
+  document.body.appendChild(ov);
+  ov.querySelector('#gv').onclick=()=>{ov.remove();useL(i,true)};
+  ov.querySelector('#gm').onclick=()=>{ov.remove();probCard(i)};
+  ov.querySelector('#gc').onclick=()=>ov.remove();
+  ov.onclick=e=>{if(e.target===ov)ov.remove()};
 }
 function lmenu(el,i){
+  if(ACC.adm)return adminCard(i);
   document.querySelectorAll('.menu').forEach(x=>x.remove());
   const d=document.createElement('div');d.className='menu';
   d.innerHTML='<button>Visualizza lista</button>';
@@ -478,7 +493,7 @@ function lmenu(el,i){
   el.parentNode.appendChild(d);
 }
 const inCal=(c,v)=>c.cols.some(k=>k.s.some(x=>x.c.trim().toLowerCase()===v));
-const calOk=c=>ACC.adm||ACC.ok.includes(c.id)||(ACC.c&&inCal(c,ACC.c));
+const calOk=c=>ACC.adm||ACC.prof||ACC.ok.includes(c.id)||(ACC.c&&inCal(c,ACC.c));
 function denied(what,verb,retry){
   const ov=document.createElement('div');ov.className='ov';
   ov.innerHTML='<div class="card delete-card gate"><h3>Accesso negato</h3><p>Il cognome "<b></b>" non è presente in '+what+'. Per motivi di privacy non puoi '+verb+'.</p><div class="row"><button class="sec" id="gc">Chiudi</button><button id="gn">Cambia cognome</button></div></div>';
@@ -486,7 +501,7 @@ function denied(what,verb,retry){
   document.body.appendChild(ov);
   ov.onclick=e=>{if(e.target===ov)ov.remove()};
   ov.querySelector('#gc').onclick=()=>ov.remove();
-  ov.querySelector('#gn').onclick=()=>{ov.remove();ACC={c:'',adm:false,ok:[]};saveAcc();retry()};
+  ov.querySelector('#gn').onclick=()=>{ov.remove();ACC={c:'',adm:false,prof:false,ok:[]};saveAcc();retry()};
 }
 function calGate(c){
   if(ACC.c&&!ACC.adm)return denied('questo calendario','visualizzarlo',()=>calGate(c));
@@ -535,9 +550,13 @@ function cfg(){
   if(S.edit)return errL('Errore: premi "Salva" sullo studente in modifica prima di continuare.');
   if(!S.studs.length)return errL('Errore: aggiungi almeno uno studente prima di continuare.');
   rt('cfg',[]);
+  const lname=(((S.li!=null)&&ld(K.l)[S.li])||{}).nome||(($('#ln')||{}).value)||'';
+  const defDays=lname.toLowerCase().replace(/\s+/g,'')==='5cin'?(S.mat==='italiano'?[1,4]:S.mat==='storia'?[2]:[]):[];
+  let defDate='';
+  if(defDays.length){const t=new Date();t.setHours(12,0,0,0);do{t.setDate(t.getDate()+1)}while(!defDays.includes(t.getDay()));defDate=isoLocal(t)}
   const dn=[['Lunedì',1],['Martedì',2],['Mercoledì',3],['Giovedì',4],['Venerdì',5],['Sabato',6]];
-  show(`<h2>Quando si interroga? (${T(S.mat)})</h2><div class="card"><p>Giorni di interrogazione</p><div class="row" style="margin:8px 0">${dn.map(d=>`<label class="chk"><input type="checkbox" class="dd" value="${d[1]}" onchange="$('#derr').textContent=''"> ${d[0]}</label>`).join('')}</div><p id="derr" class="err"></p>
-  <p>Data di inizio</p><input type="date" id="sd" min="${todayStr()}" oninput="$('#err').textContent=''"><p id="err" class="err"></p><p>Interrogati per lezione</p><input type="number" id="pp" min="1" value="2" style="width:100px"></div>
+  show(`<h2>Quando si interroga? (${T(S.mat)})</h2><div class="card"><p>Giorni di interrogazione</p><div class="row" style="margin:8px 0">${dn.map(d=>`<label class="chk"><input type="checkbox" class="dd" value="${d[1]}"${defDays.includes(d[1])?' checked':''} onchange="$('#derr').textContent=''"> ${d[0]}</label>`).join('')}</div><p id="derr" class="err"></p>
+  <p>Data di inizio</p><input type="date" id="sd" min="${todayStr()}" value="${defDate}" oninput="$('#err').textContent=''"><p id="err" class="err"></p><p>Interrogati per lezione</p><input type="number" id="pp" min="1" value="2" style="width:100px"></div>
   <div class="row"><button class="sec" onclick="crea('${S.mat}',1)">← Indietro</button><button onclick="gen()">Genera calendario</button></div>`);
 }
 const DN=['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
@@ -569,7 +588,7 @@ function gen(force){
     return warnGen(`Hai scelto ${days.length} giorni di interrogazione, ma con ${ns} ${ns==1?'studente':'studenti'} e ${pp} ${pp==1?'interrogato':'interrogati'} per lezione ${nd==1?'basta 1 lezione':`bastano ${nd} lezioni`}: ${unused.length==1?'il giorno':'i giorni'} ${unused.map(x=>DN[x]).join(', ')} non ${unused.length==1?'verrà usato':'verranno usati'}.`);
   }
   const cols=dates.map((dt,i)=>({data:dt,s:order.slice(i*pp,i*pp+pp)}));
-  const all=ld(K.c);all.push({id:Date.now(),mat:S.mat,pp,cols});sv(K.c,all);
+  const all=ld(K.c);all.push({id:Date.now(),mat:S.mat,pp,cols,days});sv(K.c,all);
   vedi(all[all.length-1].id,true);
 }
 /* visualizzazione */
@@ -611,6 +630,29 @@ function renC(id,m){
   inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();save()}};
   inp.oninput=()=>{re.textContent=''};
   inp.focus();
+}
+const isoLocal=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function nextDate(last,days){const d=new Date(last+'T12:00:00');do{d.setDate(d.getDate()+1)}while(!days.includes(d.getDay()));return isoLocal(d)}
+function remDay(id){
+  const c=ld(K.c).find(x=>x.id===id);if(!c)return;
+  const ov=document.createElement('div');ov.className='ov';
+  ov.innerHTML='<div class="card delete-card gate"><h3>Rimuovi giorno di interrogazione</h3><p class="mut">Seleziona il giorno da togliere. Le interrogazioni successive slitteranno al giorno utile seguente.</p><div class="prob-list">'+c.cols.map((k,j)=>'<label class="li"><input type="radio" name="rd" value="'+j+'"><span>'+esc(cap(DN[new Date(k.data+'T12:00:00').getDay()]))+' '+fmt(k.data)+'</span></label>').join('')+'</div><p id="rme" class="err"></p><div class="row"><button class="sec" id="rma">Annulla</button><button id="rmc">Conferma</button></div></div>';
+  document.body.appendChild(ov);
+  const me=ov.querySelector('#rme');
+  ov.querySelectorAll('input[name=rd]').forEach(x=>{x.onchange=()=>{me.textContent=''}});
+  ov.querySelector('#rma').onclick=()=>ov.remove();
+  ov.onclick=e=>{if(e.target===ov)ov.remove()};
+  ov.querySelector('#rmc').onclick=()=>{
+    const sel=ov.querySelector('input[name=rd]:checked');
+    if(!sel)return showErr(me,'Errore: seleziona il giorno da rimuovere.');
+    const j=+sel.value,all=ld(K.c),cc=all.find(x=>x.id===id);if(!cc)return ov.remove();
+    const days=cc.days||[...new Set(cc.cols.map(k=>new Date(k.data+'T12:00:00').getDay()))];
+    const removed=cc.cols[j].data,oldLast=cc.cols[cc.cols.length-1].data;
+    const dates=cc.cols.map(k=>k.data);dates.splice(j,1);dates.push(nextDate(oldLast,days));
+    cc.cols.forEach((k,x)=>{k.data=dates[x]});
+    (cc.log=cc.log||[]).push({t:'rem',day:removed,ts:Date.now()});
+    sv(K.c,all);ov.remove();vedi(id,true);
+  };
 }
 function conf(id,m){
   const o=document.createElement('div');o.className='ov';
@@ -661,14 +703,14 @@ function vedi(id,skip){
   const nl=(c.log||[]).length;
   show(`<h2>Calendario di ${T(c.mat)}</h2><div class="calendar-full"><div class="tw"></div></div>
   <div class="row"><button class="sec" onclick="lista('${c.mat}')">← Indietro</button><button onclick="$('#sw').hidden=!$('#sw').hidden">Modifica</button><button class="sec" onclick="showLog(${id})">Modifiche effettuate</button></div>
-  <div class="card" id="sw" hidden><p>Inserisci i due cognomi da scambiare</p><div class="row" style="margin:8px 0"><input id="a" placeholder="Cognome 1"><input id="na" placeholder="Nome 1" hidden><input id="b" placeholder="Cognome 2"><input id="nb" placeholder="Nome 2" hidden><button onclick="swap(${id})">Scambia</button></div><p id="werr" class="err"></p></div>`);
+  <div class="card" id="sw" hidden><p>Cosa vuoi fare?</p><div class="row"><button onclick="$('#swf').hidden=!$('#swf').hidden">Scambia studenti</button><button class="sec" onclick="remDay(${id})">Rimuovi giorno</button></div><div id="swf" hidden><p>Inserisci i due cognomi da scambiare</p><div class="row" style="margin:8px 0"><input id="a" placeholder="Cognome 1"><input id="na" placeholder="Nome 1" hidden><input id="b" placeholder="Cognome 2"><input id="nb" placeholder="Nome 2" hidden><button onclick="swap(${id})">Scambia</button></div><p id="werr" class="err"></p></div></div>`);
   CUR=id;layoutCal();
 }
 function showLog(id){
   const c=ld(K.c).find(x=>x.id===id);if(!c)return;
   const L=c.log||[];
   const o=document.createElement('div');o.className='ov';
-  o.innerHTML=`<div class="log-card"><h3>Modifiche effettuate</h3><div class="log-list">${L.length?L.map((m,i)=>`<div class="log-item" style="animation-delay:${i*50}ms"><div class="log-n">${i+1}</div><div class="log-mid"><div class="log-t">Scambio</div><div class="log-s">${esc(m.c1)} <span>→</span> ${esc(m.c2)}</div></div><div class="log-r"><div class="log-nd">Nuove date:</div><div>${esc(m.c1)}: ${fmt(m.d1)}</div><div>${esc(m.c2)}: ${fmt(m.d2)}</div></div></div>`).join(''):'<p class="log-empty">Nessuna modifica effettuata.</p>'}</div><div class="row"><button class="sec" id="lb">← Indietro</button></div></div>`;
+  o.innerHTML=`<div class="log-card"><h3>Modifiche effettuate</h3><div class="log-list">${L.length?L.map((m,i)=>m.t==='rem'?`<div class="log-item" style="animation-delay:${i*50}ms"><div class="log-n">${i+1}</div><div class="log-mid"><div class="log-t">Giorno rimosso</div><div class="log-s">${esc(cap(DN[new Date(m.day+'T12:00:00').getDay()]))}</div></div><div class="log-r"><div class="log-nd">Giorno rimosso:</div><div>${fmt(m.day)}</div></div></div>`:`<div class="log-item" style="animation-delay:${i*50}ms"><div class="log-n">${i+1}</div><div class="log-mid"><div class="log-t">Scambio</div><div class="log-s">${esc(m.c1)} <span>→</span> ${esc(m.c2)}</div></div><div class="log-r"><div class="log-nd">Nuove date:</div><div>${esc(m.c1)}: ${fmt(m.d1)}</div><div>${esc(m.c2)}: ${fmt(m.d2)}</div></div></div>`).join(''):'<p class="log-empty">Nessuna modifica effettuata.</p>'}</div><div class="row"><button class="sec" id="lb">← Indietro</button></div></div>`;
   document.body.appendChild(o);
   o.querySelector('#lb').onclick=()=>o.remove();
   o.onclick=e=>{if(e.target===o)o.remove()};
