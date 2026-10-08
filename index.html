@@ -165,9 +165,9 @@ h1{overflow-wrap:anywhere}
 .lb{position:relative}
 .lb .menu{top:100%;right:0;margin-top:4px}
 .lb .menu button{white-space:nowrap}
-.lbd{background:var(--card);color:var(--tx);border:1px solid var(--bd);box-shadow:none;padding:11px 14px;font-size:1.1rem;line-height:1;border-radius:12px}
+.lbd{background:var(--card);color:var(--tx);border:1px solid var(--bd);box-shadow:none;padding:11px 12px;font-size:1.1rem;line-height:1;border-radius:12px}
 .lb .sec.sel{border-color:var(--ac);box-shadow:0 0 0 3px #2563eb33;font-weight:700}
-.li.hid{font-size:.9rem}
+.li.hid{font-size:.9rem;justify-content:center;text-align:center}
 .delete-card.gate{border-color:#2563eb!important}
 .delete-card.gate h3{color:#1d4ed8}
 .delete-card.gate h3.ok{color:#15803d;font-size:1.4rem}
@@ -180,6 +180,17 @@ h1{overflow-wrap:anywhere}
 .prob-list input[type=checkbox]{width:18px;height:18px;padding:0;accent-color:#2563eb;flex:0 0 auto}
 .prob-list .li{cursor:pointer;font-size:.9rem}
 @media(max-width:600px){.log-card{max-height:min(68vh,calc(100dvh - 120px))}.lbd{min-height:46px}}
+@media(max-width:600px){
+  html{font-size:14.5px}
+  main{padding:14px 10px}
+  button{padding:11px 18px}
+  .hero button{padding:13px 20px}
+  .card{padding:14px;border-radius:16px}
+  .li{padding:7px 9px}
+  .log-card{padding:16px}
+  .ov .card{padding:16px}
+  .calendar-full th,.calendar-full td{font-size:.74rem}
+}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -320,7 +331,7 @@ function rsl(){
   if(cu)cu.textContent=(S.li!=null&&l[S.li])?`Stai modificando la lista "${l[S.li].nome}".`:'Lista non ancora salvata.';
   if(!b)return;
   b.hidden=!l.length;
-  b.innerHTML='<h3>Oppure usa una lista salvata</h3><div class="row">'+l.map((x,i)=>`<span class="lb"><button class="sec${i===S.li?' sel':''}" onclick="selL(${i},'sel')">${i===S.li?'✓ ':''}${esc(x.nome)} (${x.s.length} ${x.s.length==1?'studente':'studenti'})</button><button class="lbd" title="Altro" onclick="event.stopPropagation();lmenu(this,${i})">⋯</button><button class="x" title="Elimina lista" onclick="confL(${i})">🗑</button></span>`).join('')+'</div>';
+  b.innerHTML='<h3>Oppure usa una lista salvata</h3><div class="row">'+l.map((x,i)=>`<span class="lb"><button class="sec${i===S.li?' sel':''}" onclick="selL(${i},'sel')">${i===S.li?'✓ ':''}${esc(x.nome)} (${x.s.length} ${x.s.length==1?'studente':'studenti'})</button><button class="lbd" title="Altro" onclick="event.stopPropagation();lmenu(this,${i})">⋮</button><button class="x" title="Elimina lista" onclick="confL(${i})">🗑</button></span>`).join('')+'</div>';
 }
 function confL(i){
   const o=document.createElement('div');o.className='ov';
@@ -332,7 +343,7 @@ function confL(i){
 function rl(){
   if(S.show===false){
     const nm=(ld(K.l)[S.li]||{}).nome||'',n=S.studs.length;
-    $('#ls').innerHTML=`<li class="li hid">🔒<span>Lista "${esc(nm)}" selezionata (${n} ${n==1?'studente':'studenti'}). I nomi sono nascosti: usa ⋯ → "Visualizza lista" per vederli.</span></li>`;return;
+    $('#ls').innerHTML=`<li class="li hid">🔒<span>Lista "${esc(nm)}" selezionata (${n} ${n==1?'studente':'studenti'}). I nomi sono nascosti: usa ⋮ → "Visualizza lista" per vederli.</span></li>`;return;
   }
   $('#ls').innerHTML=S.studs.map((s,i)=>`<li class="li"><b>${i+1}</b><span>${esc(s.n)} ${esc(s.c)}</span>${s.d?'<span class="tag">DSA</span>':''}<button class="ed" title="Modifica" onclick="editS(${i})">✎</button><button class="x" onclick="S.studs.splice(${i},1);rl()">✕</button></li>`).join('');
 }
@@ -355,7 +366,7 @@ function editS(i){
 }
 function addS(){
   const n=$('#n').value.trim(),c=$('#c').value.trim(),e=$('#serr');
-  if(S.show===false){if(e){e.textContent='Errore: la lista è nascosta. Usa ⋯ → "Visualizza lista" prima di modificarla.';e.classList.remove('form-err');void e.offsetWidth;e.classList.add('form-err')}return}
+  if(S.show===false){if(e){e.textContent='Errore: la lista è nascosta. Usa ⋮ → "Visualizza lista" prima di modificarla.';e.classList.remove('form-err');void e.offsetWidth;e.classList.add('form-err')}return}
   if(!n||!c){if(e){e.textContent=!n&&!c?'Errore: non hai inserito nè il nome nè il cognome':!n?'Errore: non hai inserito il nome':'Errore: non hai inserito il cognome';e.classList.remove('form-err');void e.offsetWidth;e.classList.add('form-err')}if(!n)return $('#n').focus();return $('#c').focus()}
   if(e)e.textContent='';
   S.studs.push({n:cap(n),c:cap(c),d:$('#d').checked,...(S.edit&&S.edit.r?{r:S.edit.r}:{})});sortS();
@@ -394,6 +405,12 @@ function gate(o){
     box.innerHTML='<h3 class="ok">✅ Perfetto!</h3><p class="mut">Accesso consentito.</p>';
     setTimeout(()=>{ov.classList.add('fade');setTimeout(()=>{close();o.onOk(act)},650)},1000);
   };
+  const adminMenu=()=>{
+    box.innerHTML='<h3>Ciao Menditto 👋</h3><p class="mut">Cosa vuoi fare?</p><div class="row"><button id="gv">Visualizza lista</button><button class="sec" id="gm">Modifica probabilità</button></div><div class="row"><button class="sec" id="gc">Chiudi</button></div>';
+    box.querySelector('#gv').onclick=()=>{close();o.onOk('view')};
+    box.querySelector('#gm').onclick=()=>{close();if(o.onProb)o.onProb()};
+    box.querySelector('#gc').onclick=close;
+  };
   const ask=()=>{
     box.innerHTML='<h3>Chi sei?</h3><p class="mut">Scrivi il tuo cognome per continuare.</p><div class="row"><input id="gs" placeholder="Il tuo cognome" autocomplete="off" enterkeyhint="done"></div><p id="ge" class="err"></p><div class="row"><button class="sec" id="gx">Annulla</button><button id="gk">Continua</button></div>';
     const inp=box.querySelector('#gs'),ge=box.querySelector('#ge');
@@ -414,19 +431,20 @@ function gate(o){
       if(inp.value!==ADMIN_PW)return showErr(ge,'Errore: password errata.');
       ACC.adm=true;ACC.c='';saveAcc();
       if(!o.admin)return done(o.mode);
-      box.innerHTML='<h3>Ciao Menditto 👋</h3><p class="mut">Cosa vuoi fare?</p><div class="row"><button id="gv">Visualizza lista</button><button class="sec" id="gm">Modifica probabilità</button></div><div class="row"><button class="sec" id="gc">Chiudi</button></div>';
-      box.querySelector('#gv').onclick=()=>{close();o.onOk('view')};
-      box.querySelector('#gm').onclick=()=>{close();if(o.onProb)o.onProb()};
-      box.querySelector('#gc').onclick=close;
+      adminMenu();
     };
     box.querySelector('#gk').onclick=go;box.querySelector('#gb').onclick=ask;
     inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();go()}};inp.oninput=()=>{ge.textContent=''};inp.focus();
   };
   ov.onclick=e=>{if(e.target===ov)close()};
-  ask();
+  if(ACC.adm&&o.admin)adminMenu();else ask();
 }
 function selL(i,mode){
   const L=ld(K.l)[i];if(!L)return;
+  if(!ACC.adm&&ACC.c){
+    if(L.s.some(x=>x.c.trim().toLowerCase()===ACC.c))return useL(i,mode==='view');
+    return denied('questa lista','visualizzarla',()=>selL(i,mode));
+  }
   gate({mode,admin:true,
     check:v=>L.s.some(x=>x.c.trim().toLowerCase()===v),
     errMsg:n=>'Errore: il cognome "'+n+'" non risulta in questa lista. Per motivi di privacy non puoi visualizzarla.',
@@ -442,33 +460,39 @@ function lmenu(el,i){
 }
 const inCal=(c,v)=>c.cols.some(k=>k.s.some(x=>x.c.trim().toLowerCase()===v));
 const calOk=c=>ACC.adm||ACC.ok.includes(c.id)||(ACC.c&&inCal(c,ACC.c));
+function denied(what,verb,retry){
+  const ov=document.createElement('div');ov.className='ov';
+  ov.innerHTML='<div class="card delete-card gate"><h3>Accesso negato</h3><p>Il cognome "<b></b>" non è presente in '+what+'. Per motivi di privacy non puoi '+verb+'.</p><div class="row"><button class="sec" id="gc">Chiudi</button><button id="gn">Cambia cognome</button></div></div>';
+  ov.querySelector('b').textContent=cap(ACC.c);
+  document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov)ov.remove()};
+  ov.querySelector('#gc').onclick=()=>ov.remove();
+  ov.querySelector('#gn').onclick=()=>{ov.remove();ACC={c:'',adm:false,ok:[]};saveAcc();retry()};
+}
 function calGate(c){
-  if(ACC.c&&!ACC.adm){
-    const ov=document.createElement('div');ov.className='ov';
-    ov.innerHTML='<div class="card delete-card gate"><h3>Accesso negato</h3><p>Il cognome "<b></b>" non è presente in questo calendario. Per motivi di privacy non puoi visualizzarlo.</p><div class="row"><button class="sec" id="gc">Chiudi</button><button id="gn">Cambia cognome</button></div></div>';
-    ov.querySelector('b').textContent=cap(ACC.c);
-    document.body.appendChild(ov);
-    ov.querySelector('#gc').onclick=()=>ov.remove();
-    ov.querySelector('#gn').onclick=()=>{ov.remove();ACC={c:'',adm:false,ok:[]};saveAcc();calGate(c)};
-    return;
-  }
+  if(ACC.c&&!ACC.adm)return denied('questo calendario','visualizzarlo',()=>calGate(c));
   gate({mode:'view',admin:false,check:v=>inCal(c,v),
     errMsg:n=>'Errore: il cognome "'+n+'" non risulta in questo calendario. Per motivi di privacy non puoi visualizzarlo.',
     onOk:()=>vedi(c.id,true)});
 }
 function probCard(i){
-  const L=ld(K.l)[i];if(!L)return;
+  if(!ld(K.l)[i])return;
   const ov=document.createElement('div');ov.className='ov';
-  ov.innerHTML='<div class="card delete-card gate prob"><h3>Modifica probabilità</h3><p class="mut" style="font-size:.85rem;margin:4px 0">Numeri bassi: interrogati prima. Numeri alti: interrogati dopo. Predefinito: da 0 a 1 (DSA: da 0,7 a 1,7).</p><div class="row" style="margin:8px 0;align-items:center"><span>Da</span><input type="number" id="pa" min="0" step="0.1" value="0" style="width:90px"><span>a</span><input type="number" id="pb" min="1" step="0.1" value="1" style="width:90px"></div><p class="mut" style="margin:0;text-align:left">Seleziona gli studenti:</p><div class="prob-list">'+L.s.map((x,j)=>'<label class="li"><input type="checkbox" class="pc" value="'+j+'"><span>'+esc(x.n)+' '+esc(x.c)+'</span>'+(x.d?'<span class="tag">DSA</span>':'')+'<small class="mut" style="margin-left:auto">'+(x.r?x.r[0]+' – '+x.r[1]:'predefinito')+'</small></label>').join('')+'</div><p id="pe" class="err"></p><p id="ps" class="success"></p><div class="row"><button class="sec" id="px">Annulla</button><button class="sec" id="pr">Ripristina</button><button id="po">Applica</button></div></div>';
+  const rows=()=>ld(K.l)[i].s.map((x,j)=>'<label class="li"><input type="checkbox" class="pc" value="'+j+'"><span>'+esc(x.n)+' '+esc(x.c)+'</span>'+(x.d?'<span class="tag">DSA</span>':'')+'<small class="mut" style="margin-left:auto">'+(x.r?x.r[0]+' – '+x.r[1]:'predefinito')+'</small></label>').join('');
+  ov.innerHTML='<div class="card delete-card gate prob"><h3>Modifica probabilità</h3><p class="mut" style="font-size:.85rem;margin:4px 0">Numeri bassi: interrogati prima. Numeri alti: interrogati dopo. Predefinito: da 0 a 1 (DSA: da 0,7 a 1,7).</p><div class="row" style="margin:8px 0;align-items:center"><span>Da</span><input type="number" id="pa" min="0" step="0.1" value="0" style="width:90px"><span>a</span><input type="number" id="pb" min="1" step="0.1" value="1" style="width:90px"></div><div class="row small" style="margin:4px 0"><button class="sec" id="pt">Seleziona / deseleziona tutti</button></div><div class="prob-list">'+rows()+'</div><p id="pe" class="err"></p><p id="ps" class="success"></p><div class="row"><button class="sec" id="px">Chiudi</button><button class="sec" id="pr">Ripristina</button><button id="po">Applica</button></div></div>';
   document.body.appendChild(ov);
-  const pe=ov.querySelector('#pe'),sel=()=>[...ov.querySelectorAll('.pc:checked')].map(x=>+x.value);
-  const fin=m=>{
+  const pe=ov.querySelector('#pe'),pl=ov.querySelector('.prob-list'),sel=()=>[...ov.querySelectorAll('.pc:checked')].map(x=>+x.value);
+  let tm=null;
+  const fin=(LL,m)=>{
     sv(K.l,LL);
     if(S.li===i){S.studs=LL[i].s.map(x=>({...x})).sort((a,b)=>a.c.localeCompare(b.c,'it')||a.n.localeCompare(b.n,'it'));rl()}
-    ov.querySelector('#ps').textContent=m+' ✓';setTimeout(()=>ov.remove(),1000);
+    pl.innerHTML=rows();
+    const ps=ov.querySelector('#ps');ps.textContent=m+' ✓';ps.classList.remove('success');void ps.offsetWidth;ps.classList.add('success');
+    clearTimeout(tm);tm=setTimeout(()=>{ps.textContent=''},2500);
   };
-  let LL=null;
+  ov.onclick=e=>{if(e.target===ov)ov.remove()};
   ov.querySelector('#px').onclick=()=>ov.remove();
+  ov.querySelector('#pt').onclick=()=>{const c=[...ov.querySelectorAll('.pc')],on=c.some(x=>!x.checked);c.forEach(x=>{x.checked=on})};
   ov.querySelector('#po').onclick=()=>{
     pe.textContent='';
     const a=parseFloat(ov.querySelector('#pa').value),b=parseFloat(ov.querySelector('#pb').value),s=sel();
@@ -477,12 +501,12 @@ function probCard(i){
     if(b<1)return showErr(pe,'Errore: il numero massimo non può essere minore di 1.');
     if(a>b)return showErr(pe,'Errore: il numero minimo non può essere maggiore del massimo.');
     if(!s.length)return showErr(pe,'Errore: seleziona almeno uno studente.');
-    LL=ld(K.l);s.forEach(j=>{LL[i].s[j].r=[a,b]});fin('Probabilità aggiornate');
+    const LL=ld(K.l);s.forEach(j=>{LL[i].s[j].r=[a,b]});fin(LL,'Probabilità aggiornate per '+s.length+(s.length==1?' studente':' studenti'));
   };
   ov.querySelector('#pr').onclick=()=>{
     pe.textContent='';const s=sel();
-    if(!s.length)return showErr(pe,'Errore: seleziona almeno uno studente.');
-    LL=ld(K.l);s.forEach(j=>{delete LL[i].s[j].r});fin('Valori predefiniti ripristinati');
+    if(!s.length)return showErr(pe,'Errore: seleziona gli studenti da ripristinare.');
+    const LL=ld(K.l);s.forEach(j=>{delete LL[i].s[j].r});fin(LL,'Ripristinati i valori predefiniti per '+s.length+(s.length==1?' studente':' studenti'));
   };
 }
 /* configurazione */
