@@ -643,6 +643,14 @@ function layoutCal(){
     tw.style.removeProperty('--cwtot');
   }
   tw.innerHTML=calHtml(c,N);
+  if(N){
+    const ts=[...tw.querySelectorAll('table.chunk')],nr=c.pp+1;
+    for(let r=0;r<nr;r++){
+      let h=0;
+      ts.forEach(t=>{const tr=t.rows[r];if(tr)h=Math.max(h,tr.getBoundingClientRect().height)});
+      ts.forEach(t=>{const tr=t.rows[r];if(tr)tr.style.height=h+'px'});
+    }
+  }
 }
 addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(layoutCal,150)});
 function vedi(id,skip){
