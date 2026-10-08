@@ -441,14 +441,14 @@ function gate(o){
     const go=()=>{
       if(inp.value!==ADMIN_PW)return showErr(ge,'Errore: password errata.');
       ACC.adm=true;ACC.c='';saveAcc();
-      if(!o.admin)return done(o.mode);
+      if(!o.admin||o.mode!=='view')return done(o.mode);
       adminMenu();
     };
     box.querySelector('#gk').onclick=go;box.querySelector('#gb').onclick=ask;
     inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();go()}};inp.oninput=()=>{ge.textContent=''};inp.focus();
   };
   ov.onclick=e=>{if(e.target===ov)close()};
-  if(ACC.adm&&o.admin)adminMenu();else ask();
+  if(ACC.adm&&o.admin&&o.mode==='view')adminMenu();else ask();
 }
 function cambiaNome(){
   const had=ACC.c||ACC.adm;
@@ -459,6 +459,7 @@ function cambiaNome(){
 }
 function selL(i,mode){
   const L=ld(K.l)[i];if(!L)return;
+  if(ACC.adm&&mode==='sel')return useL(i,false);
   if(!ACC.adm&&ACC.c){
     if(L.s.some(x=>x.c.trim().toLowerCase()===ACC.c))return useL(i,mode==='view');
     return denied('questa lista','visualizzarla',()=>selL(i,mode));
