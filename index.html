@@ -200,6 +200,7 @@ h1{overflow-wrap:anywhere}
 .hero button.main.dim2:not(:disabled){filter:brightness(.68) saturate(.85)}
 .hero button.main.dim2:not(:disabled):hover{filter:brightness(.85)}
 .prob-list input[type=radio]{width:18px;height:18px;padding:0;accent-color:#2563eb;flex:0 0 auto}
+.gry{background:linear-gradient(135deg,#9ca3af,#6b7280);color:#fff;padding:7px 20px;font-size:.8rem;border-radius:99px;box-shadow:none}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -703,14 +704,14 @@ function vedi(id,skip){
   const nl=(c.log||[]).length;
   show(`<h2>Calendario di ${T(c.mat)}</h2><div class="calendar-full"><div class="tw"></div></div>
   <div class="row"><button class="sec" onclick="lista('${c.mat}')">← Indietro</button><button onclick="$('#sw').hidden=!$('#sw').hidden">Modifica</button><button class="sec" onclick="showLog(${id})">Modifiche effettuate</button></div>
-  <div class="card" id="sw" hidden><p>Cosa vuoi fare?</p><div class="row"><button onclick="$('#swf').hidden=!$('#swf').hidden">Scambia studenti</button><button class="sec" onclick="remDay(${id})">Rimuovi giorno</button></div><div id="swf" hidden><p>Inserisci i due cognomi da scambiare</p><div class="row" style="margin:8px 0"><input id="a" placeholder="Cognome 1"><input id="na" placeholder="Nome 1" hidden><input id="b" placeholder="Cognome 2"><input id="nb" placeholder="Nome 2" hidden><button onclick="swap(${id})">Scambia</button></div><p id="werr" class="err"></p></div></div>`);
+  <div class="card" id="sw" hidden><p>Cosa vuoi fare?</p><div class="row"><button onclick="$('#swf').hidden=!$('#swf').hidden">Scambia studenti</button><button class="sec" onclick="remDay(${id})">Rimuovi giorno</button></div><div class="row" style="margin:4px 0 0"><button class="gry" onclick="$('#sw').hidden=true;$('#swf').hidden=true">← Indietro</button></div><div id="swf" hidden><p>Inserisci i due cognomi da scambiare</p><div class="row" style="margin:8px 0"><input id="a" placeholder="Cognome 1"><input id="na" placeholder="Nome 1" hidden><input id="b" placeholder="Cognome 2"><input id="nb" placeholder="Nome 2" hidden><button onclick="swap(${id})">Scambia</button></div><p id="werr" class="err"></p></div></div>`);
   CUR=id;layoutCal();
 }
 function showLog(id){
   const c=ld(K.c).find(x=>x.id===id);if(!c)return;
   const L=c.log||[];
   const o=document.createElement('div');o.className='ov';
-  o.innerHTML=`<div class="log-card"><h3>Modifiche effettuate</h3><div class="log-list">${L.length?L.map((m,i)=>m.t==='rem'?`<div class="log-item" style="animation-delay:${i*50}ms"><div class="log-n">${i+1}</div><div class="log-mid"><div class="log-t">Giorno rimosso</div><div class="log-s">${esc(cap(DN[new Date(m.day+'T12:00:00').getDay()]))} ${fmt(m.day)}</div></div><div class="log-r"><div class="log-nd">Giorno rimosso:</div><div>${esc(cap(DN[new Date(m.day+'T12:00:00').getDay()]))} ${fmt(m.day)}</div></div></div>`:`<div class="log-item" style="animation-delay:${i*50}ms"><div class="log-n">${i+1}</div><div class="log-mid"><div class="log-t">Scambio</div><div class="log-s">${esc(m.c1)} <span>→</span> ${esc(m.c2)}</div></div><div class="log-r"><div class="log-nd">Nuove date:</div><div>${esc(m.c1)}: ${fmt(m.d1)}</div><div>${esc(m.c2)}: ${fmt(m.d2)}</div></div></div>`).join(''):'<p class="log-empty">Nessuna modifica effettuata.</p>'}</div><div class="row"><button class="sec" id="lb">← Indietro</button></div></div>`;
+  o.innerHTML=`<div class="log-card"><h3>Modifiche effettuate</h3><div class="log-list">${L.length?L.map((m,i)=>m.t==='rem'?`<div class="log-item" style="animation-delay:${i*50}ms"><div class="log-n">${i+1}</div><div class="log-mid"><div class="log-t">Giorno rimosso</div><div class="log-s">Riprogrammazione delle interrogazioni</div></div><div class="log-r" style="text-align:left"><div class="log-nd">Giorno rimosso:</div><div>${esc(cap(DN[new Date(m.day+'T12:00:00').getDay()]))} ${fmt(m.day)}</div></div></div>`:`<div class="log-item" style="animation-delay:${i*50}ms"><div class="log-n">${i+1}</div><div class="log-mid"><div class="log-t">Scambio</div><div class="log-s">${esc(m.c1)} <span>→</span> ${esc(m.c2)}</div></div><div class="log-r"><div class="log-nd">Nuove date:</div><div>${esc(m.c1)}: ${fmt(m.d1)}</div><div>${esc(m.c2)}: ${fmt(m.d2)}</div></div></div>`).join(''):'<p class="log-empty">Nessuna modifica effettuata.</p>'}</div><div class="row"><button class="sec" id="lb">← Indietro</button></div></div>`;
   document.body.appendChild(o);
   o.querySelector('#lb').onclick=()=>o.remove();
   o.onclick=e=>{if(e.target===o)o.remove()};
