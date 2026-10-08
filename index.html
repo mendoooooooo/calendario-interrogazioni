@@ -201,6 +201,12 @@ h1{overflow-wrap:anywhere}
 .hero button.main.dim2:not(:disabled):hover{filter:brightness(.85)}
 .prob-list input[type=radio]{width:18px;height:18px;padding:0;accent-color:#2563eb;flex:0 0 auto}
 .gry{background:linear-gradient(135deg,#9ca3af,#6b7280);color:#fff;padding:7px 20px;font-size:.8rem;border-radius:99px;box-shadow:none}
+.hero #sub{display:grid;grid-template-rows:0fr;width:100%;transition:grid-template-rows .55s cubic-bezier(.4,0,.2,1)}
+.hero #sub.open{grid-template-rows:1fr}
+.subin{overflow:hidden;min-height:0;padding:6px 12px 18px}
+.collapse{display:grid;grid-template-rows:0fr;opacity:0;visibility:hidden;transition:grid-template-rows .5s cubic-bezier(.4,0,.2,1),opacity .4s ease,visibility 0s linear .5s}
+.collapse.open{grid-template-rows:1fr;opacity:1;visibility:visible;transition:grid-template-rows .5s cubic-bezier(.4,0,.2,1),opacity .4s ease,visibility 0s}
+.collapse-in{overflow:hidden;min-height:0;padding:0 4px 12px}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -296,12 +302,13 @@ const mats=()=>{let r=DATA[K.s];
 function pick(mode){
   const f=mode==='crea'?'crea':'lista';
   document.querySelectorAll('.hero button.main').forEach(b=>{const clicked=(mode==='crea')===!b.id;b.classList.remove('dim1','dim2');b.classList.add(clicked?'dim1':'dim2')});
-  $('#sub').innerHTML=`<div class="view"><h2>${mode==='crea'?'Per quale materia?':'Quali calendari?'}</h2><div class="row">${mats().map(m=>`<button onclick="${f}('${m}')">${esc(T(m))}</button>`).join('')}</div><div class="row small">${mode==='crea'?'<button class="sec" onclick="addM()">+ Aggiungi materia</button><button class="sec" onclick="delM()">− Elimina materia</button>':''}<button class="sec" onclick="closeSub()">Indietro</button></div><div id="am"></div></div>`;
+  $('#sub').innerHTML=`<div class="subin"><div class="view"><h2>${mode==='crea'?'Per quale materia?':'Quali calendari?'}</h2><div class="row">${mats().map(m=>`<button onclick="${f}('${m}')">${esc(T(m))}</button>`).join('')}</div><div class="row small">${mode==='crea'?'<button class="sec" onclick="addM()">+ Aggiungi materia</button><button class="sec" onclick="delM()">− Elimina materia</button>':''}<button class="sec" onclick="closeSub()">Indietro</button></div><div id="am"></div></div></div>`;
+  const sb=$('#sub');if(!sb.classList.contains('open')){void sb.offsetHeight;sb.classList.add('open')}
 }
 function closeSub(){
   const v=document.querySelector('#sub .view');if(!v)return;
   document.querySelectorAll('.hero button.main').forEach(b=>b.classList.remove('dim1','dim2'));
-  v.classList.add('out');setTimeout(()=>{$('#sub').innerHTML=''},330);
+  v.classList.add('out');$('#sub').classList.remove('open');setTimeout(()=>{const sb=$('#sub');if(sb&&!sb.classList.contains('open'))sb.innerHTML=''},580);
 }
 function addM(){
   $('#am').innerHTML=`<div class="view"><div class="row" style="margin:6px 0"><input id="mn" placeholder="Nome della materia" maxlength="30" onkeydown="if(isEnter(event)){event.preventDefault();saveM()}"><button class="sm" onclick="saveM()">Aggiungi</button></div><p id="merr" class="err"></p></div>`;
@@ -634,26 +641,36 @@ function renC(id,m){
 }
 const isoLocal=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 function nextDate(last,days){const d=new Date(last+'T12:00:00');do{d.setDate(d.getDate()+1)}while(!days.includes(d.getDay()));return isoLocal(d)}
+function editPanel(w){
+  const sw=$('#swf'),rm=$('#rmf');
+  const swOn=w==='sw'&&sw.hidden,rmOn=w==='rm'&&rm.hidden;
+  sw.hidden=!swOn;rm.hidden=!rmOn;
+  $('#bsw').classList.toggle('sec',rmOn);$('#brm').classList.toggle('sec',swOn);
+}
+function toggleEdit(){
+  const w=$('#swr');
+  if(w.classList.contains('open'))return closeEdit();
+  w.classList.add('open');
+  setTimeout(()=>{const c=$('#sw');if(c)c.scrollIntoView({behavior:'smooth',block:'nearest'})},300);
+}
+function closeEdit(){
+  $('#swr').classList.remove('open');
+  setTimeout(()=>{
+    if($('#swr').classList.contains('open'))return;
+    $('#swf').hidden=true;$('#rmf').hidden=true;
+    $('#bsw').classList.remove('sec');$('#brm').classList.remove('sec');
+  },520);
+  const t=document.querySelector('.calendar-full');
+  if(t)t.scrollIntoView({behavior:'smooth',block:'center'});
+}
 function remDay(id){
-  const c=ld(K.c).find(x=>x.id===id);if(!c)return;
-  const ov=document.createElement('div');ov.className='ov';
-  ov.innerHTML='<div class="card delete-card gate"><h3>Rimuovi giorno di interrogazione</h3><p class="mut">Seleziona il giorno da togliere. Le interrogazioni successive slitteranno al giorno utile seguente.</p><div class="prob-list">'+c.cols.map((k,j)=>'<label class="li"><input type="radio" name="rd" value="'+j+'"><span>'+esc(cap(DN[new Date(k.data+'T12:00:00').getDay()]))+' '+fmt(k.data)+'</span></label>').join('')+'</div><p id="rme" class="err"></p><div class="row"><button class="sec" id="rma">Annulla</button><button id="rmc">Conferma</button></div></div>';
-  document.body.appendChild(ov);
-  const me=ov.querySelector('#rme');
-  ov.querySelectorAll('input[name=rd]').forEach(x=>{x.onchange=()=>{me.textContent=''}});
-  ov.querySelector('#rma').onclick=()=>ov.remove();
-  ov.onclick=e=>{if(e.target===ov)ov.remove()};
-  ov.querySelector('#rmc').onclick=()=>{
-    const sel=ov.querySelector('input[name=rd]:checked');
-    if(!sel)return showErr(me,'Errore: seleziona il giorno da rimuovere.');
-    const j=+sel.value,all=ld(K.c),cc=all.find(x=>x.id===id);if(!cc)return ov.remove();
-    const days=cc.days||[...new Set(cc.cols.map(k=>new Date(k.data+'T12:00:00').getDay()))];
-    const removed=cc.cols[j].data,oldLast=cc.cols[cc.cols.length-1].data;
-    const dates=cc.cols.map(k=>k.data);dates.splice(j,1);dates.push(nextDate(oldLast,days));
-    cc.cols.forEach((k,x)=>{k.data=dates[x]});
-    (cc.log=cc.log||[]).push({t:'rem',day:removed,ts:Date.now()});
-    sv(K.c,all);ov.remove();vedi(id,true);
-  };
+  const j=+($('#rms')||{}).value,all=ld(K.c),cc=all.find(x=>x.id===id);if(!cc||isNaN(j)||!cc.cols[j])return;
+  const days=cc.days||[...new Set(cc.cols.map(k=>new Date(k.data+'T12:00:00').getDay()))];
+  const removed=cc.cols[j].data,oldLast=cc.cols[cc.cols.length-1].data;
+  const dates=cc.cols.map(k=>k.data);dates.splice(j,1);dates.push(nextDate(oldLast,days));
+  cc.cols.forEach((k,x)=>{k.data=dates[x]});
+  (cc.log=cc.log||[]).push({t:'rem',day:removed,ts:Date.now()});
+  sv(K.c,all);vedi(id,true);
 }
 function conf(id,m){
   const o=document.createElement('div');o.className='ov';
@@ -702,9 +719,10 @@ function vedi(id,skip){
   if(!ACC.ok.includes(id)){ACC.ok.push(id);saveAcc()}
   rt('vedi',[id]);
   const nl=(c.log||[]).length;
+  const rmOpts=c.cols.map((k,j)=>'<option value="'+j+'">'+fmt(k.data)+'</option>').join('');
   show(`<h2>Calendario di ${T(c.mat)}</h2><div class="calendar-full"><div class="tw"></div></div>
-  <div class="row"><button class="sec" onclick="lista('${c.mat}')">← Indietro</button><button onclick="$('#sw').hidden=!$('#sw').hidden">Modifica</button><button class="sec" onclick="showLog(${id})">Modifiche effettuate</button></div>
-  <div class="card" id="sw" hidden><p>Cosa vuoi fare?</p><div class="row"><button onclick="$('#swf').hidden=!$('#swf').hidden">Scambia studenti</button><button class="sec" onclick="remDay(${id})">Rimuovi giorno</button></div><div class="row" style="margin:4px 0 0"><button class="gry" onclick="$('#sw').hidden=true;$('#swf').hidden=true">← Indietro</button></div><div id="swf" hidden><p>Inserisci i due cognomi da scambiare</p><div class="row" style="margin:8px 0"><input id="a" placeholder="Cognome 1"><input id="na" placeholder="Nome 1" hidden><input id="b" placeholder="Cognome 2"><input id="nb" placeholder="Nome 2" hidden><button onclick="swap(${id})">Scambia</button></div><p id="werr" class="err"></p></div></div>`);
+  <div class="row"><button class="sec" onclick="lista('${c.mat}')">← Indietro</button><button onclick="toggleEdit()">Modifica</button><button class="sec" onclick="showLog(${id})">Modifiche effettuate</button></div>
+  <div id="swr" class="collapse"><div class="collapse-in"><div class="card" id="sw"><p>Cosa vuoi fare?</p><div class="row"><button id="bsw" onclick="editPanel('sw')">Scambia studenti</button><button id="brm" onclick="editPanel('rm')">Rimuovi giorno di interrogazione</button></div><div id="swf" hidden><p>Inserisci i due cognomi da scambiare</p><div class="row" style="margin:8px 0"><input id="a" placeholder="Cognome 1"><input id="na" placeholder="Nome 1" hidden><input id="b" placeholder="Cognome 2"><input id="nb" placeholder="Nome 2" hidden><button onclick="swap(${id})">Scambia</button></div><p id="werr" class="err"></p></div><div id="rmf" class="card" hidden><h3 style="margin:.2em 0 .5em">Rimuovi giorno di interrogazione</h3><p class="mut" style="margin:.3em 0">Seleziona la data da eliminare. Gli studenti verranno riprogrammati nelle lezioni successive.</p><div class="row" style="margin:10px 0"><select id="rms">${rmOpts}</select></div><div class="row" style="margin:6px 0 2px"><button class="sec" onclick="editPanel('rm')">Annulla</button><button onclick="remDay(${id})">Conferma</button></div></div><div class="row" style="margin:6px 0 0"><button class="gry" onclick="closeEdit()">← Indietro</button></div></div></div></div>`);
   CUR=id;layoutCal();
 }
 function showLog(id){
