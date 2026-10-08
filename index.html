@@ -84,7 +84,6 @@ td.flash{animation:fl 1.4s}
 .lb{display:inline-flex;gap:6px;align-items:center}
 .lb .x{margin-left:0;padding:11px 13px;border-radius:12px}
 .dt{display:block;margin-top:8px;font-weight:500;color:var(--mut)}
-.row.small button,.hero .sm{padding:5px 12px;font-size:.75rem;border-radius:99px;box-shadow:none}
 .err{color:#dc2626;font-weight:600;margin:8px 0;animation:shk .45s}
 .err:empty{display:none}
 @keyframes shk{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
@@ -161,6 +160,26 @@ h1{overflow-wrap:anywhere}
 .log-card .sec{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25)}
 .sync{position:fixed;left:50%;bottom:calc(8px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:5;font-size:.7rem;padding:4px 12px;border-radius:99px;background:rgba(15,23,42,.6);color:#fff;pointer-events:none;white-space:nowrap}
 @media(max-width:600px){.log-item{grid-template-columns:auto 1fr}.log-mid{grid-row:1;grid-column:2}.log-r{grid-row:2;grid-column:2;margin-top:6px}}
+.row.small button{padding:5px 12px;font-size:.75rem;border-radius:99px;box-shadow:none}
+.hero .sm{padding:12px 18px;font-size:.8rem;border-radius:99px;box-shadow:none}
+.lb{position:relative}
+.lb .menu{top:100%;right:0;margin-top:4px}
+.lb .menu button{white-space:nowrap}
+.lbd{background:var(--card);color:var(--tx);border:1px solid var(--bd);box-shadow:none;padding:11px 14px;font-size:1.1rem;line-height:1;border-radius:12px}
+.lb .sec.sel{border-color:var(--ac);box-shadow:0 0 0 3px #2563eb33;font-weight:700}
+.li.hid{font-size:.9rem}
+.delete-card.gate{border-color:#2563eb!important}
+.delete-card.gate h3{color:#1d4ed8}
+.delete-card.gate h3.ok{color:#15803d;font-size:1.4rem}
+.gate input[type=text],.gate input[type=password],.gate input:not([type]){width:100%}
+.gate .row>input[type=number]{width:90px}
+.ov.fade{opacity:0;transition:opacity .65s ease}
+.ov.fade .card{transform:scale(.94);transition:transform .65s ease}
+.prob{max-height:88vh;display:flex;flex-direction:column}
+.prob-list{overflow-y:auto;max-height:38vh;text-align:left;margin:6px 0}
+.prob-list input[type=checkbox]{width:18px;height:18px;padding:0;accent-color:#2563eb;flex:0 0 auto}
+.prob-list .li{cursor:pointer;font-size:.9rem}
+@media(max-width:600px){.log-card{max-height:min(68vh,calc(100dvh - 120px))}.lbd{min-height:46px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -217,6 +236,9 @@ async function loadServer(){
 }
 const isEnter=e=>e.key==='Enter'||e.keyCode===13;
 let S={mat:null,studs:[],cfg:null},mem=null,CUR=null,curKey=null,restoring=false,rz=null;
+let ACC={c:'',adm:false,ok:[]};
+try{const a=JSON.parse(sessionStorage.getItem('ci_acc'));if(a)ACC=Object.assign(ACC,a)}catch(e){}
+const saveAcc=()=>{try{sessionStorage.setItem('ci_acc',JSON.stringify(ACC))}catch(e){}};
 const fmt=d=>new Date(d).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'});
 const fmtShort=d=>new Date(d).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'2-digit'});
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -279,7 +301,7 @@ function confM(i){
 }
 /* creazione */
 function crea(m,keep){
-  if(!keep||S.mat!==m)S={mat:m,studs:[],cfg:null,li:null};
+  if(!keep||S.mat!==m)S={mat:m,studs:[],cfg:null,li:null,show:true};
   rt('crea',[m,1]);
   const l=ld(K.l);
   show(`<h2>Nuovo calendario: ${T(m)}</h2><div class="card create-head"><button class="back-circle" title="Torna indietro" onclick="home('crea')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button><h3>Aggiungi studenti</h3>
@@ -298,7 +320,7 @@ function rsl(){
   if(cu)cu.textContent=(S.li!=null&&l[S.li])?`Stai modificando la lista "${l[S.li].nome}".`:'Lista non ancora salvata.';
   if(!b)return;
   b.hidden=!l.length;
-  b.innerHTML='<h3>Oppure usa una lista salvata</h3><div class="row">'+l.map((x,i)=>`<span class="lb"><button class="sec" onclick="useL(${i})">${esc(x.nome)} (${x.s.length} ${x.s.length==1?'studente':'studenti'})</button><button class="x" title="Elimina lista" onclick="confL(${i})">🗑</button></span>`).join('')+'</div>';
+  b.innerHTML='<h3>Oppure usa una lista salvata</h3><div class="row">'+l.map((x,i)=>`<span class="lb"><button class="sec${i===S.li?' sel':''}" onclick="selL(${i},'sel')">${i===S.li?'✓ ':''}${esc(x.nome)} (${x.s.length} ${x.s.length==1?'studente':'studenti'})</button><button class="lbd" title="Altro" onclick="event.stopPropagation();lmenu(this,${i})">⋯</button><button class="x" title="Elimina lista" onclick="confL(${i})">🗑</button></span>`).join('')+'</div>';
 }
 function confL(i){
   const o=document.createElement('div');o.className='ov';
@@ -308,6 +330,10 @@ function confL(i){
   o.querySelector('#si').onclick=()=>{const l=ld(K.l);l.splice(i,1);sv(K.l,l);if(S.li===i)S.li=null;else if(S.li>i)S.li--;o.remove();rsl()};
 }
 function rl(){
+  if(S.show===false){
+    const nm=(ld(K.l)[S.li]||{}).nome||'',n=S.studs.length;
+    $('#ls').innerHTML=`<li class="li hid">🔒<span>Lista "${esc(nm)}" selezionata (${n} ${n==1?'studente':'studenti'}). I nomi sono nascosti: usa ⋯ → "Visualizza lista" per vederli.</span></li>`;return;
+  }
   $('#ls').innerHTML=S.studs.map((s,i)=>`<li class="li"><b>${i+1}</b><span>${esc(s.n)} ${esc(s.c)}</span>${s.d?'<span class="tag">DSA</span>':''}<button class="ed" title="Modifica" onclick="editS(${i})">✎</button><button class="x" onclick="S.studs.splice(${i},1);rl()">✕</button></li>`).join('');
 }
 function kS(e){
@@ -329,9 +355,10 @@ function editS(i){
 }
 function addS(){
   const n=$('#n').value.trim(),c=$('#c').value.trim(),e=$('#serr');
+  if(S.show===false){if(e){e.textContent='Errore: la lista è nascosta. Usa ⋯ → "Visualizza lista" prima di modificarla.';e.classList.remove('form-err');void e.offsetWidth;e.classList.add('form-err')}return}
   if(!n||!c){if(e){e.textContent=!n&&!c?'Errore: non hai inserito nè il nome nè il cognome':!n?'Errore: non hai inserito il nome':'Errore: non hai inserito il cognome';e.classList.remove('form-err');void e.offsetWidth;e.classList.add('form-err')}if(!n)return $('#n').focus();return $('#c').focus()}
   if(e)e.textContent='';
-  S.studs.push({n:cap(n),c:cap(c),d:$('#d').checked});sortS();
+  S.studs.push({n:cap(n),c:cap(c),d:$('#d').checked,...(S.edit&&S.edit.r?{r:S.edit.r}:{})});sortS();
   S.edit=null;$('#ab').textContent='Aggiungi';
   $('#n').value=$('#c').value='';$('#d').checked=false;rl();$('#n').focus();
 }
@@ -354,7 +381,110 @@ function saveL(nuova){
   const ok=$('#lsuccess');if(ok){ok.textContent=msg+' ✓';ok.classList.remove('success');void ok.offsetWidth;ok.classList.add('success')}
   const b=$('#sl');b.classList.remove('hl');void b.offsetWidth;b.classList.add('hl');b.scrollIntoView({behavior:'smooth',block:'center'});
 }
-function useL(i){S.li=i;$('#ln').value=ld(K.l)[i].nome;S.studs=ld(K.l)[i].s.map(x=>({...x})).sort((a,b)=>a.c.localeCompare(b.c,'it')||a.n.localeCompare(b.n,'it'));rl();rsl();window.scrollTo({top:0,behavior:'smooth'})}
+function useL(i,show){S.li=i;S.show=!!show;$('#ln').value=ld(K.l)[i].nome;S.studs=ld(K.l)[i].s.map(x=>({...x})).sort((a,b)=>a.c.localeCompare(b.c,'it')||a.n.localeCompare(b.n,'it'));rl();rsl();window.scrollTo({top:0,behavior:'smooth'})}
+/* ===== accesso per cognome ===== */
+const ADMIN_PW='Mendo.2008';
+function showErr(el,m){if(!el)return;el.textContent=m;el.classList.remove('err');void el.offsetWidth;el.classList.add('err')}
+function gate(o){
+  const ov=document.createElement('div');ov.className='ov';
+  ov.innerHTML='<div class="card delete-card gate"></div>';
+  document.body.appendChild(ov);
+  const box=ov.firstChild,close=()=>ov.remove();
+  const done=act=>{
+    box.innerHTML='<h3 class="ok">✅ Perfetto!</h3><p class="mut">Accesso consentito.</p>';
+    setTimeout(()=>{ov.classList.add('fade');setTimeout(()=>{close();o.onOk(act)},650)},1000);
+  };
+  const ask=()=>{
+    box.innerHTML='<h3>Chi sei?</h3><p class="mut">Scrivi il tuo cognome per continuare.</p><div class="row"><input id="gs" placeholder="Il tuo cognome" autocomplete="off" enterkeyhint="done"></div><p id="ge" class="err"></p><div class="row"><button class="sec" id="gx">Annulla</button><button id="gk">Continua</button></div>';
+    const inp=box.querySelector('#gs'),ge=box.querySelector('#ge');
+    const go=()=>{
+      const rw=inp.value.trim(),v=rw.toLowerCase();
+      if(!v)return showErr(ge,'Errore: scrivi il tuo cognome.');
+      if(v==='menditto')return askPw();
+      if(o.check(v)){ACC.c=v;ACC.adm=false;saveAcc();done(o.mode)}
+      else showErr(ge,o.errMsg(rw));
+    };
+    box.querySelector('#gk').onclick=go;box.querySelector('#gx').onclick=close;
+    inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();go()}};inp.oninput=()=>{ge.textContent=''};inp.focus();
+  };
+  const askPw=()=>{
+    box.innerHTML='<h3>Password</h3><p class="mut">Inserisci la password per continuare.</p><div class="row"><input id="gp" type="password" placeholder="Password" autocomplete="off" enterkeyhint="done"></div><p id="ge" class="err"></p><div class="row"><button class="sec" id="gb">← Indietro</button><button id="gk">Conferma</button></div>';
+    const inp=box.querySelector('#gp'),ge=box.querySelector('#ge');
+    const go=()=>{
+      if(inp.value!==ADMIN_PW)return showErr(ge,'Errore: password errata.');
+      ACC.adm=true;ACC.c='';saveAcc();
+      if(!o.admin)return done(o.mode);
+      box.innerHTML='<h3>Ciao Menditto 👋</h3><p class="mut">Cosa vuoi fare?</p><div class="row"><button id="gv">Visualizza lista</button><button class="sec" id="gm">Modifica probabilità</button></div><div class="row"><button class="sec" id="gc">Chiudi</button></div>';
+      box.querySelector('#gv').onclick=()=>{close();o.onOk('view')};
+      box.querySelector('#gm').onclick=()=>{close();if(o.onProb)o.onProb()};
+      box.querySelector('#gc').onclick=close;
+    };
+    box.querySelector('#gk').onclick=go;box.querySelector('#gb').onclick=ask;
+    inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();go()}};inp.oninput=()=>{ge.textContent=''};inp.focus();
+  };
+  ov.onclick=e=>{if(e.target===ov)close()};
+  ask();
+}
+function selL(i,mode){
+  const L=ld(K.l)[i];if(!L)return;
+  gate({mode,admin:true,
+    check:v=>L.s.some(x=>x.c.trim().toLowerCase()===v),
+    errMsg:n=>'Errore: il cognome "'+n+'" non risulta in questa lista. Per motivi di privacy non puoi visualizzarla.',
+    onOk:act=>useL(i,act==='view'),
+    onProb:()=>probCard(i)});
+}
+function lmenu(el,i){
+  document.querySelectorAll('.menu').forEach(x=>x.remove());
+  const d=document.createElement('div');d.className='menu';
+  d.innerHTML='<button>Visualizza lista</button>';
+  d.onclick=e=>{e.stopPropagation();d.remove();selL(i,'view')};
+  el.parentNode.appendChild(d);
+}
+const inCal=(c,v)=>c.cols.some(k=>k.s.some(x=>x.c.trim().toLowerCase()===v));
+const calOk=c=>ACC.adm||ACC.ok.includes(c.id)||(ACC.c&&inCal(c,ACC.c));
+function calGate(c){
+  if(ACC.c&&!ACC.adm){
+    const ov=document.createElement('div');ov.className='ov';
+    ov.innerHTML='<div class="card delete-card gate"><h3>Accesso negato</h3><p>Il cognome "<b></b>" non è presente in questo calendario. Per motivi di privacy non puoi visualizzarlo.</p><div class="row"><button class="sec" id="gc">Chiudi</button><button id="gn">Cambia cognome</button></div></div>';
+    ov.querySelector('b').textContent=cap(ACC.c);
+    document.body.appendChild(ov);
+    ov.querySelector('#gc').onclick=()=>ov.remove();
+    ov.querySelector('#gn').onclick=()=>{ov.remove();ACC={c:'',adm:false,ok:[]};saveAcc();calGate(c)};
+    return;
+  }
+  gate({mode:'view',admin:false,check:v=>inCal(c,v),
+    errMsg:n=>'Errore: il cognome "'+n+'" non risulta in questo calendario. Per motivi di privacy non puoi visualizzarlo.',
+    onOk:()=>vedi(c.id,true)});
+}
+function probCard(i){
+  const L=ld(K.l)[i];if(!L)return;
+  const ov=document.createElement('div');ov.className='ov';
+  ov.innerHTML='<div class="card delete-card gate prob"><h3>Modifica probabilità</h3><p class="mut" style="font-size:.85rem;margin:4px 0">Numeri bassi: interrogati prima. Numeri alti: interrogati dopo. Predefinito: da 0 a 1 (DSA: da 0,7 a 1,7).</p><div class="row" style="margin:8px 0;align-items:center"><span>Da</span><input type="number" id="pa" min="0" step="0.1" value="0" style="width:90px"><span>a</span><input type="number" id="pb" min="1" step="0.1" value="1" style="width:90px"></div><p class="mut" style="margin:0;text-align:left">Seleziona gli studenti:</p><div class="prob-list">'+L.s.map((x,j)=>'<label class="li"><input type="checkbox" class="pc" value="'+j+'"><span>'+esc(x.n)+' '+esc(x.c)+'</span>'+(x.d?'<span class="tag">DSA</span>':'')+'<small class="mut" style="margin-left:auto">'+(x.r?x.r[0]+' – '+x.r[1]:'predefinito')+'</small></label>').join('')+'</div><p id="pe" class="err"></p><p id="ps" class="success"></p><div class="row"><button class="sec" id="px">Annulla</button><button class="sec" id="pr">Ripristina</button><button id="po">Applica</button></div></div>';
+  document.body.appendChild(ov);
+  const pe=ov.querySelector('#pe'),sel=()=>[...ov.querySelectorAll('.pc:checked')].map(x=>+x.value);
+  const fin=m=>{
+    sv(K.l,LL);
+    if(S.li===i){S.studs=LL[i].s.map(x=>({...x})).sort((a,b)=>a.c.localeCompare(b.c,'it')||a.n.localeCompare(b.n,'it'));rl()}
+    ov.querySelector('#ps').textContent=m+' ✓';setTimeout(()=>ov.remove(),1000);
+  };
+  let LL=null;
+  ov.querySelector('#px').onclick=()=>ov.remove();
+  ov.querySelector('#po').onclick=()=>{
+    pe.textContent='';
+    const a=parseFloat(ov.querySelector('#pa').value),b=parseFloat(ov.querySelector('#pb').value),s=sel();
+    if(isNaN(a)||isNaN(b))return showErr(pe,'Errore: inserisci i due numeri.');
+    if(a<0)return showErr(pe,'Errore: il numero minimo non può essere minore di 0.');
+    if(b<1)return showErr(pe,'Errore: il numero massimo non può essere minore di 1.');
+    if(a>b)return showErr(pe,'Errore: il numero minimo non può essere maggiore del massimo.');
+    if(!s.length)return showErr(pe,'Errore: seleziona almeno uno studente.');
+    LL=ld(K.l);s.forEach(j=>{LL[i].s[j].r=[a,b]});fin('Probabilità aggiornate');
+  };
+  ov.querySelector('#pr').onclick=()=>{
+    pe.textContent='';const s=sel();
+    if(!s.length)return showErr(pe,'Errore: seleziona almeno uno studente.');
+    LL=ld(K.l);s.forEach(j=>{delete LL[i].s[j].r});fin('Valori predefiniti ripristinati');
+  };
+}
 /* configurazione */
 const todayStr=()=>{const t=new Date();return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0')};
 function errG(id,m){const e=$('#'+id);if(!e)return;e.textContent=m;e.classList.remove('err');void e.offsetWidth;e.classList.add('err')}
@@ -387,7 +517,7 @@ function gen(force){
     e.textContent=`Errore: il ${fmt(sd)} è un ${N[d.getDay()]}, ma hai scelto ${days.map(x=>N[x]).join(', ')}. Scegli una data di inizio che cada in uno di questi giorni.`;
     e.classList.remove('err');void e.offsetWidth;e.classList.add('err');return;
   }
-  const order=S.studs.map(s=>({s,k:Math.random()+(s.d?.7:0)})).sort((a,b)=>a.k-b.k).map(x=>x.s);
+  const order=S.studs.map(s=>({s,k:s.r?s.r[0]+Math.random()*(s.r[1]-s.r[0]):Math.random()+(s.d?.7:0)})).sort((a,b)=>a.k-b.k).map(x=>x.s);
   const nd=Math.ceil(order.length/pp),dates=[];
   while(dates.length<nd){if(days.includes(d.getDay()))dates.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1)}
   const used=new Set(dates.map(x=>new Date(x+'T12:00:00').getDay())),unused=days.filter(x=>!used.has(x));
@@ -397,7 +527,7 @@ function gen(force){
   }
   const cols=dates.map((dt,i)=>({data:dt,s:order.slice(i*pp,i*pp+pp)}));
   const all=ld(K.c);all.push({id:Date.now(),mat:S.mat,pp,cols});sv(K.c,all);
-  vedi(all[all.length-1].id);
+  vedi(all[all.length-1].id,true);
 }
 /* visualizzazione */
 function lista(m){
@@ -442,13 +572,15 @@ function layoutCal(){
   if(isMob()){
     const av=tw.clientWidth||300,n0=Math.max(1,Math.floor(av/90));
     N=Math.min(n0,c.cols.length);
-    tw.style.setProperty('--cwtot',(Math.floor(av/n0)*N)+'px');
+    tw.style.removeProperty('--cwtot');
   }
   tw.innerHTML=calHtml(c,N);
 }
 addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(layoutCal,150)});
-function vedi(id){
+function vedi(id,skip){
   const c=ld(K.c).find(x=>x.id===id);if(!c)return home();
+  if(!skip&&!calOk(c))return calGate(c);
+  if(!ACC.ok.includes(id)){ACC.ok.push(id);saveAcc()}
   rt('vedi',[id]);
   const nl=(c.log||[]).length;
   show(`<h2>Calendario di ${T(c.mat)}</h2><div class="calendar-full"><div class="tw"></div></div>
@@ -490,7 +622,7 @@ function swap(id){
   const t=c.cols[p[0]].s[p[1]],u=c.cols[q[0]].s[q[1]];
   c.cols[p[0]].s[p[1]]=u;c.cols[q[0]].s[q[1]]=t;
   (c.log=c.log||[]).push({c1:t.c,c2:u.c,d1:c.cols[q[0]].data,d2:c.cols[p[0]].data,t:Date.now()});
-  sv(K.c,all);vedi(id);
+  sv(K.c,all);vedi(id,true);
   const pk=p[0]+','+p[1],qk=q[0]+','+q[1];
   document.querySelectorAll('td').forEach(td=>{const a=td.dataset.c+','+td.dataset.r;if(a===pk||a===qk)td.classList.add('flash')});
 }
