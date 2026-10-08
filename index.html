@@ -191,6 +191,12 @@ h1{overflow-wrap:anywhere}
   .ov .card{padding:16px}
   .calendar-full th,.calendar-full td{font-size:.74rem}
 }
+.menu{display:flex;flex-direction:column;gap:6px}
+.menu button{white-space:nowrap}
+.cal{overflow-wrap:anywhere}
+.hero button.main{transition:filter .35s ease,transform .2s,box-shadow .2s}
+.hero button.main.dim:not(:disabled){filter:brightness(.68) saturate(.85)}
+.hero button.main.dim:not(:disabled):hover{filter:brightness(.85)}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -276,7 +282,7 @@ const title='<h1>Calendario Interrogazioni Programmate</h1>';
 function home(openMode){
   rt('home',[openMode||null]);
   const has=ld(K.c).length>0;
-  show(`<div class="hero">${title}<p>Organizza le interrogazioni in un attimo</p><div class="row"><button onclick="pick('crea')">Crea nuovo calendario</button><button id="bvis" ${has?'':'disabled'} onclick="pick('vis')">Visualizza calendari</button></div><div id="sub"></div></div>`);
+  show(`<div class="hero">${title}<p>Organizza le interrogazioni in un attimo</p><div class="row"><button class="main" onclick="pick('crea')">Crea nuovo calendario</button><button class="main" id="bvis" ${has?'':'disabled'} onclick="pick('vis')">Visualizza calendari</button></div><div id="sub"></div></div>`);
   document.body.classList.add('home');
   if(openMode)pick(openMode);
 }
@@ -285,10 +291,12 @@ const mats=()=>{let r=DATA[K.s];
   try{return JSON.parse(r)}catch(e){return['italiano','storia']}};
 function pick(mode){
   const f=mode==='crea'?'crea':'lista';
+  document.querySelectorAll('.hero button.main').forEach(b=>b.classList.add('dim'));
   $('#sub').innerHTML=`<div class="view"><h2>${mode==='crea'?'Per quale materia?':'Quali calendari?'}</h2><div class="row">${mats().map(m=>`<button onclick="${f}('${m}')">${esc(T(m))}</button>`).join('')}</div><div class="row small">${mode==='crea'?'<button class="sec" onclick="addM()">+ Aggiungi materia</button><button class="sec" onclick="delM()">− Elimina materia</button>':''}<button class="sec" onclick="closeSub()">Indietro</button></div><div id="am"></div></div>`;
 }
 function closeSub(){
   const v=document.querySelector('#sub .view');if(!v)return;
+  document.querySelectorAll('.hero button.main').forEach(b=>b.classList.remove('dim'));
   v.classList.add('out');setTimeout(()=>{$('#sub').innerHTML=''},330);
 }
 function addM(){
@@ -568,16 +576,41 @@ function lista(m){
   const cs=ld(K.c).filter(c=>c.mat===m);
   rt('lista',[m]);
   if(!cs.length)return show(`<h2>Calendario ancora non presente</h2><p class="mut">Non hai ancora creato calendari di ${T(m)}.</p><div class="row"><button onclick="crea('${m}')">Crea qui</button><button class="sec" onclick="home('vis')">← Indietro</button></div>`);
-  show(`<h2>Calendari di ${T(m)}</h2><div class="grid">${cs.map((c,i)=>`<div class="cal" style="animation-delay:${i*70}ms" onclick="vedi(${c.id})"><span class="dots" onclick="event.stopPropagation();menu(this,${c.id},'${m}')">⋯</span>Calendario ${i+1}:<span class="dt">${fmt(c.cols[0].data)} - ${fmt(c.cols[c.cols.length-1].data)}</span></div>`).join('')}</div><div class="row"><button class="sec" onclick="home('vis')">← Indietro</button></div>`);
+  show(`<h2>Calendari di ${T(m)}</h2><div class="grid">${cs.map((c,i)=>`<div class="cal" style="animation-delay:${i*70}ms" onclick="vedi(${c.id})"><span class="dots" onclick="event.stopPropagation();menu(this,${c.id},'${m}')">⋯</span>${esc(c.name||'Calendario '+(i+1))}:<span class="dt">${fmt(c.cols[0].data)} - ${fmt(c.cols[c.cols.length-1].data)}</span></div>`).join('')}</div><div class="row"><button class="sec" onclick="home('vis')">← Indietro</button></div>`);
 }
 function menu(el,id,m){
   document.querySelectorAll('.menu').forEach(x=>x.remove());
   const d=document.createElement('div');d.className='menu';
-  d.innerHTML=`<button class="danger">🗑 Elimina</button>`;
-  d.onclick=e=>{e.stopPropagation();d.remove();conf(id,m)};
+  d.innerHTML='<button class="rn">✏️ Rinomina</button><button class="danger">🗑 Elimina</button>';
+  d.onclick=e=>{e.stopPropagation();const b=e.target.closest('button');if(!b)return;d.remove();if(b.classList.contains('rn'))renC(id,m);else conf(id,m)};
   el.parentNode.appendChild(d);
 }
 document.addEventListener('click',()=>document.querySelectorAll('.menu').forEach(x=>x.remove()));
+const calNames=()=>{const cnt={};return ld(K.c).map(c=>{cnt[c.mat]=(cnt[c.mat]||0)+1;return{id:c.id,mat:c.mat,n:c.name||'Calendario '+cnt[c.mat]}})};
+function renC(id,m){
+  const all=ld(K.c),c=all.find(x=>x.id===id);if(!c)return;
+  const cur=(calNames().find(x=>x.id===id)||{}).n||'';
+  const ov=document.createElement('div');ov.className='ov';
+  ov.innerHTML='<div class="card delete-card gate"><h3>Rinomina calendario</h3><p class="mut">Nome attuale: <b></b></p><div class="row"><input id="rn" maxlength="40" placeholder="Nuovo nome" autocomplete="off" enterkeyhint="done"></div><p id="re" class="err"></p><div class="row"><button class="sec" id="rx">Annulla</button><button id="rs">Salva</button></div></div>';
+  ov.querySelector('b').textContent=cur;
+  document.body.appendChild(ov);
+  const inp=ov.querySelector('#rn'),re=ov.querySelector('#re');
+  const save=()=>{
+    const nome=inp.value.trim();
+    if(!nome)return showErr(re,'Errore: inserisci il nuovo nome.');
+    const k=nome.toLowerCase(),dup=ld(K.c).find(x=>x.id!==id&&x.name&&x.name.trim().toLowerCase()===k);
+    if(dup)return showErr(re,'Errore: hai già un calendario chiamato "'+dup.name+'" ('+T(dup.mat)+'). Scegli un altro nome.');
+    c.name=nome;sv(K.c,all);
+    ov.classList.add('fade');
+    setTimeout(()=>{ov.remove();lista(m)},650);
+  };
+  ov.querySelector('#rs').onclick=save;
+  ov.querySelector('#rx').onclick=()=>ov.remove();
+  ov.onclick=e=>{if(e.target===ov)ov.remove()};
+  inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();save()}};
+  inp.oninput=()=>{re.textContent=''};
+  inp.focus();
+}
 function conf(id,m){
   const o=document.createElement('div');o.className='ov';
   o.innerHTML=`<div class="card delete-card"><h3>Sei sicuro di voler cancellare questo calendario?</h3><p class="mut">L'azione non si può annullare.</p><div class="row"><button class="sec" id="no">Annulla</button><button class="danger" id="si">Conferma eliminazione</button></div></div>`;
