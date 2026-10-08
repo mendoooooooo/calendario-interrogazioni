@@ -217,6 +217,8 @@ h1{overflow-wrap:anywhere}
 .log-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.42);background-clip:padding-box;border:2px solid transparent}
 .log-list::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.62);background-clip:padding-box}
 @supports not selector(::-webkit-scrollbar){*{scrollbar-width:thin;scrollbar-color:#38bdf8 transparent}.log-list{scrollbar-color:rgba(255,255,255,.45) transparent}}
+.warnmsg{color:#b45309;font-weight:600;margin:8px 0;animation:shk .45s}
+.warnmsg:empty{display:none}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -639,12 +641,12 @@ function renC(id,m){
     const d=find(),key=d?d.id:null;
     if(key===was)return;was=key;
     rs.textContent=d?'Sostituisci':'Salva';
-    if(d)showErr(re,'Errore: esiste già un calendario chiamato "'+d.n+'" ('+T(d.mat)+'). Premendo "Sostituisci" i due calendari si scambiano il nome: questo diventerà "'+d.n+'" e quello esistente diventerà "'+cur+'". Altrimenti scrivi un altro nome o premi Annulla.');
-    else re.textContent='';
+    if(d){re.className='';void re.offsetWidth;re.className='warnmsg';re.textContent='Attenzione: hai già un calendario con lo stesso nome. Cambia nome oppure sostituisci i due calendari.'}
+    else{re.className='err';re.textContent=''}
   };
   const save=()=>{
     const nome=inp.value.trim();
-    if(!nome)return showErr(re,'Errore: inserisci il nuovo nome.');
+    if(!nome){re.className='err';return showErr(re,'Errore: inserisci il nuovo nome.')}
     const d=find();
     if(d){const o=all.find(x=>x.id===d.id);o.name=cur;c.name=d.n}
     else c.name=nome;
@@ -656,7 +658,7 @@ function renC(id,m){
   ov.querySelector('#rx').onclick=()=>ov.remove();
   ov.onclick=e=>{if(e.target===ov)ov.remove()};
   inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();save()}};
-  inp.oninput=()=>{if(!find())re.textContent='';refresh()};
+  inp.oninput=()=>{if(!find()){re.className='err';re.textContent=''}refresh()};
   inp.focus();
 }
 const isoLocal=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
