@@ -207,6 +207,7 @@ h1{overflow-wrap:anywhere}
 .collapse{display:grid;grid-template-rows:0fr;opacity:0;visibility:hidden;transition:grid-template-rows .5s cubic-bezier(.4,0,.2,1),opacity .4s ease,visibility 0s linear .5s}
 .collapse.open{grid-template-rows:1fr;opacity:1;visibility:visible;transition:grid-template-rows .5s cubic-bezier(.4,0,.2,1),opacity .4s ease,visibility 0s}
 .collapse-in{overflow:hidden;min-height:0;padding:0 4px 12px}
+.okg{background:linear-gradient(135deg,#d1fae5,#a7f3d0)!important;color:#166534!important;border:1px solid #6ee7b7!important;box-shadow:none!important}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -645,6 +646,7 @@ function editPanel(w){
   const sw=$('#swf'),rm=$('#rmf');
   const swOn=w==='sw'&&sw.hidden,rmOn=w==='rm'&&rm.hidden;
   sw.hidden=!swOn;rm.hidden=!rmOn;
+  RMSEL=[];updateRmBtn();const re=$('#rme');if(re)re.textContent='';
   $('#bsw').classList.toggle('sec',rmOn);$('#brm').classList.toggle('sec',swOn);
 }
 function toggleEdit(){
@@ -657,20 +659,53 @@ function closeEdit(){
   $('#swr').classList.remove('open');
   setTimeout(()=>{
     if($('#swr').classList.contains('open'))return;
-    $('#swf').hidden=true;$('#rmf').hidden=true;
+    $('#swf').hidden=true;$('#rmf').hidden=true;RMSEL=[];updateRmBtn();
     $('#bsw').classList.remove('sec');$('#brm').classList.remove('sec');
   },520);
   const t=document.querySelector('.calendar-full');
   if(t)t.scrollIntoView({behavior:'smooth',block:'center'});
 }
+let RMSEL=[];
+function updateRmBtn(){
+  const b=$('#rmpick');if(!b)return;
+  if(RMSEL.length){b.className='okg';b.textContent='✓ Date selezionate'}
+  else{b.className='';b.textContent='Scegli date'}
+}
+function pickDates(id){
+  const c=ld(K.c).find(x=>x.id===id);if(!c)return;
+  const ov=document.createElement('div');ov.className='ov';
+  ov.innerHTML='<div class="card delete-card gate prob"><h3>Scegli le date da rimuovere</h3><p class="mut" style="font-size:.85rem;margin:4px 0">Puoi selezionare uno o più giorni.</p><div class="prob-list">'+c.cols.map((k,j)=>'<label class="li"><input type="checkbox" class="rc" value="'+j+'"'+(RMSEL.includes(j)?' checked':'')+'><span>'+esc(cap(DN[new Date(k.data+'T12:00:00').getDay()]))+' '+fmt(k.data)+'</span></label>').join('')+'</div><p id="rpe" class="err"></p><div class="row"><button class="sec" id="rpx">Annulla</button><button id="rpo">Conferma</button></div></div>';
+  document.body.appendChild(ov);
+  const pe=ov.querySelector('#rpe');
+  ov.onclick=e=>{if(e.target===ov)ov.remove()};
+  ov.querySelector('#rpx').onclick=()=>ov.remove();
+  ov.querySelectorAll('.rc').forEach(x=>{x.onchange=()=>{pe.textContent=''}});
+  ov.querySelector('#rpo').onclick=()=>{
+    const sel=[...ov.querySelectorAll('.rc:checked')].map(x=>+x.value);
+    if(!sel.length)return showErr(pe,'Errore: seleziona almeno una data da rimuovere, oppure premi Annulla.');
+    RMSEL=sel;ov.remove();updateRmBtn();
+    const re=$('#rme');if(re)re.textContent='';
+  };
+}
 function remDay(id){
-  const j=+($('#rms')||{}).value,all=ld(K.c),cc=all.find(x=>x.id===id);if(!cc||isNaN(j)||!cc.cols[j])return;
+  const re=$('#rme');
+  if(!RMSEL.length)return showErr(re,'Errore: non hai selezionato nessuna data. Premi "Scegli date" e seleziona almeno un giorno da rimuovere.');
+  const all=ld(K.c),cc=all.find(x=>x.id===id);if(!cc)return;
+  const sel=[...new Set(RMSEL)].filter(j=>cc.cols[j]).sort((a,b)=>a-b);if(!sel.length)return;
   const days=cc.days||[...new Set(cc.cols.map(k=>new Date(k.data+'T12:00:00').getDay()))];
-  const removed=cc.cols[j].data,oldLast=cc.cols[cc.cols.length-1].data;
-  const dates=cc.cols.map(k=>k.data);dates.splice(j,1);dates.push(nextDate(oldLast,days));
+  const removed=sel.map(j=>cc.cols[j].data),oldLast=cc.cols[cc.cols.length-1].data;
+  const dates=cc.cols.map(k=>k.data).filter((_,j)=>!sel.includes(j));
+  let last=oldLast;sel.forEach(()=>{last=nextDate(last,days);dates.push(last)});
   cc.cols.forEach((k,x)=>{k.data=dates[x]});
-  (cc.log=cc.log||[]).push({t:'rem',day:removed,ts:Date.now()});
-  sv(K.c,all);vedi(id,true);
+  (cc.log=cc.log||[]).push({t:'rem',day:removed[0],days:removed,ts:Date.now()});
+  RMSEL=[];sv(K.c,all);vedi(id,true);
+}
+function kSw(e,id){
+  if(!isEnter(e))return;e.preventDefault();
+  const t=e.target.id,v=x=>(($('#'+x)||{}).value||'').trim();
+  if(t==='a')return ($('#na').hidden?$('#b'):$('#na')).focus();
+  if(t==='na'&&!v('b'))return $('#b').focus();
+  swap(id);
 }
 function conf(id,m){
   const o=document.createElement('div');o.className='ov';
@@ -718,18 +753,19 @@ function vedi(id,skip){
   if(!skip&&!calOk(c))return calGate(c);
   if(!ACC.ok.includes(id)){ACC.ok.push(id);saveAcc()}
   rt('vedi',[id]);
+  RMSEL=[];
   const nl=(c.log||[]).length;
   const rmOpts=c.cols.map((k,j)=>'<option value="'+j+'">'+fmt(k.data)+'</option>').join('');
   show(`<h2>Calendario di ${T(c.mat)}</h2><div class="calendar-full"><div class="tw"></div></div>
   <div class="row"><button class="sec" onclick="lista('${c.mat}')">← Indietro</button><button onclick="toggleEdit()">Modifica</button><button class="sec" onclick="showLog(${id})">Modifiche effettuate</button></div>
-  <div id="swr" class="collapse"><div class="collapse-in"><div class="card" id="sw"><p>Cosa vuoi fare?</p><div class="row"><button id="bsw" onclick="editPanel('sw')">Scambia studenti</button><button id="brm" onclick="editPanel('rm')">Rimuovi giorno di interrogazione</button></div><div id="swf" hidden><p>Inserisci i due cognomi da scambiare</p><div class="row" style="margin:8px 0"><input id="a" placeholder="Cognome 1"><input id="na" placeholder="Nome 1" hidden><input id="b" placeholder="Cognome 2"><input id="nb" placeholder="Nome 2" hidden><button onclick="swap(${id})">Scambia</button></div><p id="werr" class="err"></p></div><div id="rmf" class="card" hidden><h3 style="margin:.2em 0 .5em">Rimuovi giorno di interrogazione</h3><p class="mut" style="margin:.3em 0">Seleziona la data da eliminare. Gli studenti verranno riprogrammati nelle lezioni successive.</p><div class="row" style="margin:10px 0"><select id="rms">${rmOpts}</select></div><div class="row" style="margin:6px 0 2px"><button class="sec" onclick="editPanel('rm')">Annulla</button><button onclick="remDay(${id})">Conferma</button></div></div><div class="row" style="margin:6px 0 0"><button class="gry" onclick="closeEdit()">← Indietro</button></div></div></div></div>`);
+  <div id="swr" class="collapse"><div class="collapse-in"><div class="card" id="sw"><p>Cosa vuoi fare?</p><div class="row"><button id="bsw" onclick="editPanel('sw')">Scambia studenti</button><button id="brm" onclick="editPanel('rm')">Rimuovi giorno di interrogazione</button></div><div id="swf" hidden><p>Inserisci i due cognomi da scambiare</p><div class="row" style="margin:8px 0"><input id="a" placeholder="Cognome 1" onkeydown="kSw(event,${id})"><input id="na" placeholder="Nome 1" hidden onkeydown="kSw(event,${id})"><input id="b" placeholder="Cognome 2" onkeydown="kSw(event,${id})"><input id="nb" placeholder="Nome 2" hidden onkeydown="kSw(event,${id})"><button onclick="swap(${id})">Scambia</button></div><p id="werr" class="err"></p></div><div id="rmf" class="card" hidden><h3 style="margin:.2em 0 .5em">Rimuovi giorno di interrogazione</h3><p class="mut" style="margin:.3em 0">Scegli le date da eliminare. Gli studenti verranno riprogrammati nelle lezioni successive.</p><div class="row" style="margin:10px 0"><button id="rmpick" onclick="pickDates(${id})">Scegli date</button></div><p id="rme" class="err"></p><div class="row" style="margin:6px 0 2px"><button class="sec" onclick="editPanel('rm')">Annulla</button><button onclick="remDay(${id})">Conferma</button></div></div><div class="row" style="margin:6px 0 0"><button class="gry" onclick="closeEdit()">← Indietro</button></div></div></div></div>`);
   CUR=id;layoutCal();
 }
 function showLog(id){
   const c=ld(K.c).find(x=>x.id===id);if(!c)return;
   const L=c.log||[];
   const o=document.createElement('div');o.className='ov';
-  o.innerHTML=`<div class="log-card"><h3>Modifiche effettuate</h3><div class="log-list">${L.length?L.map((m,i)=>m.t==='rem'?`<div class="log-item" style="animation-delay:${i*50}ms"><div class="log-n">${i+1}</div><div class="log-mid"><div class="log-t">Giorno rimosso</div><div class="log-s">Riprogrammazione delle interrogazioni</div></div><div class="log-r" style="text-align:left"><div class="log-nd">Giorno rimosso:</div><div>${esc(cap(DN[new Date(m.day+'T12:00:00').getDay()]))} ${fmt(m.day)}</div></div></div>`:`<div class="log-item" style="animation-delay:${i*50}ms"><div class="log-n">${i+1}</div><div class="log-mid"><div class="log-t">Scambio</div><div class="log-s">${esc(m.c1)} <span>→</span> ${esc(m.c2)}</div></div><div class="log-r"><div class="log-nd">Nuove date:</div><div>${esc(m.c1)}: ${fmt(m.d1)}</div><div>${esc(m.c2)}: ${fmt(m.d2)}</div></div></div>`).join(''):'<p class="log-empty">Nessuna modifica effettuata.</p>'}</div><div class="row"><button class="sec" id="lb">← Indietro</button></div></div>`;
+  o.innerHTML=`<div class="log-card"><h3>Modifiche effettuate</h3><div class="log-list">${L.length?L.map((m,i)=>m.t==='rem'?`<div class="log-item" style="animation-delay:${i*50}ms"><div class="log-n">${i+1}</div><div class="log-mid"><div class="log-t">${(m.days||[1]).length>1?'Giorni rimossi':'Giorno rimosso'}</div><div class="log-s">Riprogrammazione delle interrogazioni</div></div><div class="log-r" style="text-align:left"><div class="log-nd">${(m.days||[1]).length>1?'Giorni rimossi:':'Giorno rimosso:'}</div>${(m.days||[m.day]).map(d=>'<div>'+esc(cap(DN[new Date(d+'T12:00:00').getDay()]))+' '+fmt(d)+'</div>').join('')}</div></div>`:`<div class="log-item" style="animation-delay:${i*50}ms"><div class="log-n">${i+1}</div><div class="log-mid"><div class="log-t">Scambio</div><div class="log-s">${esc(m.c1)} <span>→</span> ${esc(m.c2)}</div></div><div class="log-r"><div class="log-nd">Nuove date:</div><div>${esc(m.c1)}: ${fmt(m.d1)}</div><div>${esc(m.c2)}: ${fmt(m.d2)}</div></div></div>`).join(''):'<p class="log-empty">Nessuna modifica effettuata.</p>'}</div><div class="row"><button class="sec" id="lb">← Indietro</button></div></div>`;
   document.body.appendChild(o);
   o.querySelector('#lb').onclick=()=>o.remove();
   o.onclick=e=>{if(e.target===o)o.remove()};
