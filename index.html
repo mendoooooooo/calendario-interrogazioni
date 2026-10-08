@@ -196,7 +196,7 @@ h1{overflow-wrap:anywhere}
 </head>
 <body>
 <main id="app"></main>
-<script id="seed" type="application/json">{}</script>
+<script id="seed" type="application/json">{"v":1791411052090,"l":[{"nome":"ciao","s":[{"n":"Giulia","c":"Poli","d":false}]},{"nome":"jj","s":[{"n":"Ekf","c":"Mirko","d":false},{"n":"Ejfje","c":"Poli","d":false}]}],"c":[{"id":1791392066406,"mat":"italiano","pp":1,"cols":[{"data":"2026-10-14","s":[{"n":"Efkn","c":"Mirko","d":false}]},{"data":"2026-10-21","s":[{"n":"Wjfefej","c":"Poli","d":false}]},{"data":"2026-10-28","s":[{"n":"Ekfew","c":"Poli","d":false}]}],"log":[{"c1":"Mirko","c2":"Poli","d1":"2026-10-21","d2":"2026-10-28","t":1791409789507},{"c1":"Poli","c2":"Mirko","d1":"2026-10-21","d2":"2026-10-14","t":1791409839633}]},{"id":1791394270005,"mat":"italiano","pp":2,"cols":[{"data":"2026-10-14","s":[{"n":"Giulia","c":"Poli","d":false}]}]},{"id":1791410983976,"mat":"italiano","pp":2,"cols":[{"data":"2026-10-14","s":[{"n":"Ejfje","c":"Poli","d":false},{"n":"Ekf","c":"Mirko","d":false}]}]}],"s":["italiano","storia"]}</script>
 <script id="main">
 const $=s=>document.querySelector(s),app=$('#app');
 const K={l:'ci_liste',c:'ci_cal',s:'ci_mat2'};
@@ -215,34 +215,26 @@ if(SEED.v&&SEED.v>=LV){
   LV=SEED.v;try{localStorage.setItem('ci_v',String(LV))}catch(e){}
 }
 function setBadge(t){const e=document.getElementById('sync');if(e){e.textContent=t;e.hidden=!t}}
-let KEY='';try{KEY=localStorage.getItem('ci_key')||''}catch(e){}
-function pushCloud(){clearTimeout(tmr);tmr=setTimeout(publishNow,700)}
-async function api(m,body){
-  const r=await fetch('/api/data',{method:m,headers:{'Content-Type':'application/json','x-key':KEY},body:body?JSON.stringify(body):undefined});
-  if(r.status===401){
-    KEY=prompt('Codice di accesso:')||'';
-    try{localStorage.setItem('ci_key',KEY)}catch(e){}
-    if(KEY)return api(m,body);
-    throw new Error('401');
-  }
-  return r;
+function pushCloud(){if(!art)return;clearTimeout(tmr);tmr=setTimeout(publishNow,800)}
+function buildHtml(seed){
+  const E='</scr'+'ipt>',O='<scr'+'ipt';
+  return '<!DOCTYPE html>\n<html lang="it">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n<title>Calendario Interrogazioni Programmate</title>\n<style id="st">'+document.getElementById('st').textContent+'</style>\n</head>\n<body>\n<main id="app"></main>\n'+O+' id="seed" type="application/json">'+JSON.stringify(seed).replace(/</g,'\\u003c')+E+'\n'+O+' id="main">'+document.getElementById('main').textContent+E+'\n</body>\n</html>';
 }
-function applySrv(d){setLocal(K.l,d.l||[]);setLocal(K.c,d.c||[]);if(d.s)setLocal(K.s,d.s);LV=d.v;try{localStorage.setItem('ci_v',String(LV))}catch(e){}}
 async function publishNow(){
   tmr=null;
-  try{
-    const r=await api('POST',{v:LV,l:ld(K.l),c:ld(K.c),s:DATA[K.s]?ld(K.s):null});
-    if(r.status===409){applySrv(await r.json());setBadge('☁️ Aggiornato da un altro dispositivo');return}
-    setBadge(r.ok?'☁️ Salvato online':'⚠️ Salvataggio online non riuscito');
-  }catch(e){setBadge('⚠️ Salvataggio online non riuscito')}
+  const seed={v:LV,l:ld(K.l),c:ld(K.c),s:DATA[K.s]?ld(K.s):null};
+  try{sessionStorage.setItem('ci_resume',JSON.stringify({k:curKey,S:{mat:S.mat,studs:S.studs,li:S.li,show:S.show}}))}catch(e){}
+  try{await art.publish(buildHtml(seed))}
+  catch(e){try{sessionStorage.removeItem('ci_resume')}catch(x){}setBadge(e&&e.code==='conflict'?'':'📱 Solo su questo dispositivo (sola lettura)')}
 }
-async function loadServer(){
+async function initCloud(){
   try{
-    const r=await api('GET');if(!r.ok)throw new Error('http');
-    const d=await r.json();
-    if(d&&d.v&&d.v>LV)applySrv(d);
-    else if(LV&&(!d||!d.v||LV>d.v))pushCloud();
-    setBadge('☁️ Collegato al database');
+    for(let i=0;i<15&&!(window.claude&&claude.use);i++)await new Promise(r=>setTimeout(r,200));
+    if(!(window.claude&&claude.use))return setBadge('📱 Solo su questo dispositivo');
+    art=await claude.use('artifact');
+    if(!art)return setBadge('📱 Solo su questo dispositivo');
+    setBadge('☁️ Sincronizzazione attiva');
+    if(LV>(SEED.v||0)||(!SEED.v&&(ld(K.l).length||ld(K.c).length||DATA[K.s]))){if(!LV)stampLocal();pushCloud()}
   }catch(e){setBadge('📱 Solo su questo dispositivo')}
 }
 const isEnter=e=>e.key==='Enter'||e.keyCode===13;
@@ -653,7 +645,12 @@ function swap(id){
 document.body.insertAdjacentHTML('afterbegin','<div class="bg"><i class="bl" style="--k:.06;left:-12vmax;top:-10vmax;background:#22d3ee"></i><i class="bl" style="--k:-.09;right:-14vmax;top:12vmax;background:#f43f5e;animation-delay:-4s"></i><i class="bl" style="--k:.04;left:18vw;bottom:-18vmax;background:#facc15;animation-delay:-8s"></i><i class="glow"></i></div>');
 addEventListener('pointermove',e=>{const s=document.documentElement.style;s.setProperty('--mx',e.clientX-innerWidth/2);s.setProperty('--my',e.clientY-innerHeight/2);s.setProperty('--gx',e.clientX+'px');s.setProperty('--gy',e.clientY+'px')});
 document.body.insertAdjacentHTML('beforeend','<div id="sync" class="sync" hidden></div>');
-loadServer().finally(()=>home());
+(function(){
+  let rs=null;try{rs=JSON.parse(sessionStorage.getItem('ci_resume'));sessionStorage.removeItem('ci_resume')}catch(e){}
+  if(rs&&rs.k){try{const [n,a]=JSON.parse(rs.k);if(rs.S&&n!=='home')S=Object.assign(S,rs.S);if(typeof window[n]==='function'){window[n](...(a||[]));return}}catch(e){}}
+  home();
+})();
+initCloud();
 </script>
 </body>
 </html>
