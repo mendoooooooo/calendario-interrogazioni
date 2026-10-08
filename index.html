@@ -158,14 +158,14 @@ h1{overflow-wrap:anywhere}
 .log-nd{opacity:.65;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
 .log-empty{text-align:center;opacity:.8}
 .log-card .sec{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25)}
-.sync{position:fixed;left:50%;bottom:calc(8px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:5;font-size:.7rem;padding:4px 12px;border-radius:99px;background:rgba(15,23,42,.6);color:#fff;pointer-events:none;white-space:nowrap}
+.sync{position:fixed;left:50%;bottom:calc(8px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:5;font-size:.7rem;padding:4px 12px;border-radius:99px;background:rgba(15,23,42,.6);color:#fff;pointer-events:none;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:600px){.log-item{grid-template-columns:auto 1fr}.log-mid{grid-row:1;grid-column:2}.log-r{grid-row:2;grid-column:2;margin-top:6px}}
 .row.small button{padding:5px 12px;font-size:.75rem;border-radius:99px;box-shadow:none}
 .hero .sm{padding:12px 18px;font-size:.8rem;border-radius:99px;box-shadow:none}
 .lb{position:relative}
 .lb .menu{top:100%;right:0;margin-top:4px}
 .lb .menu button{white-space:nowrap}
-.lbd{background:var(--card);color:var(--tx);border:1px solid var(--bd);box-shadow:none;padding:11px 12px;font-size:1.1rem;line-height:1;border-radius:12px}
+.lbd{background:var(--card);color:var(--tx);border:1px solid var(--bd);box-shadow:none;padding:0;width:42px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:12px}
 .lb .sec.sel{border-color:var(--ac);box-shadow:0 0 0 3px #2563eb33;font-weight:700}
 .li.hid{font-size:.9rem;justify-content:center;text-align:center}
 .delete-card.gate{border-color:#2563eb!important}
@@ -196,7 +196,7 @@ h1{overflow-wrap:anywhere}
 </head>
 <body>
 <main id="app"></main>
-<script id="seed" type="application/json">{"v":1791411052090,"l":[{"nome":"ciao","s":[{"n":"Giulia","c":"Poli","d":false}]},{"nome":"jj","s":[{"n":"Ekf","c":"Mirko","d":false},{"n":"Ejfje","c":"Poli","d":false}]}],"c":[{"id":1791392066406,"mat":"italiano","pp":1,"cols":[{"data":"2026-10-14","s":[{"n":"Efkn","c":"Mirko","d":false}]},{"data":"2026-10-21","s":[{"n":"Wjfefej","c":"Poli","d":false}]},{"data":"2026-10-28","s":[{"n":"Ekfew","c":"Poli","d":false}]}],"log":[{"c1":"Mirko","c2":"Poli","d1":"2026-10-21","d2":"2026-10-28","t":1791409789507},{"c1":"Poli","c2":"Mirko","d1":"2026-10-21","d2":"2026-10-14","t":1791409839633}]},{"id":1791394270005,"mat":"italiano","pp":2,"cols":[{"data":"2026-10-14","s":[{"n":"Giulia","c":"Poli","d":false}]}]},{"id":1791410983976,"mat":"italiano","pp":2,"cols":[{"data":"2026-10-14","s":[{"n":"Ejfje","c":"Poli","d":false},{"n":"Ekf","c":"Mirko","d":false}]}]}],"s":["italiano","storia"]}</script>
+<script id="seed" type="application/json">{}</script>
 <script id="main">
 const $=s=>document.querySelector(s),app=$('#app');
 const K={l:'ci_liste',c:'ci_cal',s:'ci_mat2'};
@@ -215,27 +215,38 @@ if(SEED.v&&SEED.v>=LV){
   LV=SEED.v;try{localStorage.setItem('ci_v',String(LV))}catch(e){}
 }
 function setBadge(t){const e=document.getElementById('sync');if(e){e.textContent=t;e.hidden=!t}}
-function pushCloud(){if(!art)return;clearTimeout(tmr);tmr=setTimeout(publishNow,800)}
-function buildHtml(seed){
-  const E='</scr'+'ipt>',O='<scr'+'ipt';
-  return '<!DOCTYPE html>\n<html lang="it">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n<title>Calendario Interrogazioni Programmate</title>\n<style id="st">'+document.getElementById('st').textContent+'</style>\n</head>\n<body>\n<main id="app"></main>\n'+O+' id="seed" type="application/json">'+JSON.stringify(seed).replace(/</g,'\\u003c')+E+'\n'+O+' id="main">'+document.getElementById('main').textContent+E+'\n</body>\n</html>';
+let KEY='';try{KEY=localStorage.getItem('ci_key')||''}catch(e){}
+function pushCloud(){clearTimeout(tmr);tmr=setTimeout(publishNow,700)}
+async function api(m,body){
+  const r=await fetch('/api/data',{method:m,headers:{'Content-Type':'application/json','x-key':KEY},body:body?JSON.stringify(body):undefined});
+  if(r.status===401){
+    let j=null;try{j=await r.clone().json()}catch(e){}
+    if(!(j&&j.error==='codice errato'))throw new Error('401: accesso bloccato da Vercel, apri calendario-interrogazioni.vercel.app');
+    KEY=prompt('Codice di accesso:')||'';
+    try{localStorage.setItem('ci_key',KEY)}catch(e){}
+    if(KEY)return api(m,body);
+    throw new Error('401: codice non inserito');
+  }
+  return r;
 }
+function applySrv(d){setLocal(K.l,d.l||[]);setLocal(K.c,d.c||[]);if(d.s)setLocal(K.s,d.s);LV=d.v;try{localStorage.setItem('ci_v',String(LV))}catch(e){}}
 async function publishNow(){
   tmr=null;
-  const seed={v:LV,l:ld(K.l),c:ld(K.c),s:DATA[K.s]?ld(K.s):null};
-  try{sessionStorage.setItem('ci_resume',JSON.stringify({k:curKey,S:{mat:S.mat,studs:S.studs,li:S.li,show:S.show}}))}catch(e){}
-  try{await art.publish(buildHtml(seed))}
-  catch(e){try{sessionStorage.removeItem('ci_resume')}catch(x){}setBadge(e&&e.code==='conflict'?'':'📱 Solo su questo dispositivo (sola lettura)')}
-}
-async function initCloud(){
   try{
-    for(let i=0;i<15&&!(window.claude&&claude.use);i++)await new Promise(r=>setTimeout(r,200));
-    if(!(window.claude&&claude.use))return setBadge('📱 Solo su questo dispositivo');
-    art=await claude.use('artifact');
-    if(!art)return setBadge('📱 Solo su questo dispositivo');
-    setBadge('☁️ Sincronizzazione attiva');
-    if(LV>(SEED.v||0)||(!SEED.v&&(ld(K.l).length||ld(K.c).length||DATA[K.s]))){if(!LV)stampLocal();pushCloud()}
-  }catch(e){setBadge('📱 Solo su questo dispositivo')}
+    const r=await api('POST',{v:LV,l:ld(K.l),c:ld(K.c),s:DATA[K.s]?ld(K.s):null});
+    if(r.status===409){applySrv(await r.json());setBadge('☁️ Aggiornato da un altro dispositivo');return}
+    if(!r.ok){let m='';try{m=(await r.json()).error||''}catch(e){}return setBadge('⚠️ Salvataggio online non riuscito ('+r.status+(m?': '+m:'')+')')}
+    setBadge('☁️ Salvato online');
+  }catch(e){setBadge('⚠️ Salvataggio online non riuscito ('+(e.message||'errore')+')')}
+}
+async function loadServer(){
+  try{
+    const r=await api('GET');if(!r.ok){let m='';try{m=(await r.json()).error||''}catch(e){}throw new Error(r.status+(m?': '+m:''))}
+    const d=await r.json();
+    if(d&&d.v&&d.v>LV)applySrv(d);
+    else if(LV&&(!d||!d.v||LV>d.v))pushCloud();
+    setBadge('☁️ Collegato al database');
+  }catch(e){setBadge('📱 Solo su questo dispositivo ('+(e.message||'errore')+')')}
 }
 const isEnter=e=>e.key==='Enter'||e.keyCode===13;
 let S={mat:null,studs:[],cfg:null},mem=null,CUR=null,curKey=null,restoring=false,rz=null;
@@ -312,7 +323,7 @@ function crea(m,keep){
   <ol id="ls"></ol>
   <div class="row"><input id="ln" placeholder="Nome della lista" enterkeyhint="done" oninput="$('#lerr').textContent='';snewUpd()" onkeydown="if(isEnter(event)){event.preventDefault();saveL()}"><button onclick="saveL()">Salva</button><button class="sec" id="snew" hidden onclick="saveL(true)">Salva come nuova lista</button></div><p id="cur" class="mut" style="margin:0"></p><p id="lerr" class="err"></p><p id="lsuccess" class="success"></p></div>
   <div class="card" id="sl" hidden></div>
-  <div class="row"><button class="sec" onclick="home('crea')">← Indietro</button><button onclick="cfg()">Continua</button></div>`);
+  <div class="row"><button class="sec" onclick="home('crea')">← Indietro</button><button class="sec" onclick="cambiaNome()">Cambia nome</button><button onclick="cfg()">Continua</button></div>`);
   rl();rsl();
   if(S.li!=null){const x=ld(K.l)[S.li];if(x)$('#ln').value=x.nome}
 }
@@ -323,7 +334,7 @@ function rsl(){
   if(cu)cu.textContent=(S.li!=null&&l[S.li])?`Stai modificando la lista "${l[S.li].nome}".`:'Lista non ancora salvata.';
   if(!b)return;
   b.hidden=!l.length;
-  b.innerHTML='<h3>Oppure usa una lista salvata</h3><div class="row">'+l.map((x,i)=>`<span class="lb"><button class="sec${i===S.li?' sel':''}" onclick="selL(${i},'sel')">${i===S.li?'✓ ':''}${esc(x.nome)} (${x.s.length} ${x.s.length==1?'studente':'studenti'})</button><button class="lbd" title="Altro" onclick="event.stopPropagation();lmenu(this,${i})">⋮</button><button class="x" title="Elimina lista" onclick="confL(${i})">🗑</button></span>`).join('')+'</div>';
+  b.innerHTML='<h3>Oppure usa una lista salvata</h3><div class="row">'+l.map((x,i)=>`<span class="lb"><button class="sec${i===S.li?' sel':''}" onclick="selL(${i},'sel')">${i===S.li?'✓ ':''}${esc(x.nome)} (${x.s.length} ${x.s.length==1?'studente':'studenti'})</button><button class="lbd" title="Altro" onclick="event.stopPropagation();lmenu(this,${i})"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button><button class="x" title="Elimina lista" onclick="confL(${i})">🗑</button></span>`).join('')+'</div>';
 }
 function confL(i){
   const o=document.createElement('div');o.className='ov';
@@ -398,7 +409,7 @@ function gate(o){
     setTimeout(()=>{ov.classList.add('fade');setTimeout(()=>{close();o.onOk(act)},650)},1000);
   };
   const adminMenu=()=>{
-    box.innerHTML='<h3>Ciao Menditto 👋</h3><p class="mut">Cosa vuoi fare?</p><div class="row"><button id="gv">Visualizza lista</button><button class="sec" id="gm">Modifica probabilità</button></div><div class="row"><button class="sec" id="gc">Chiudi</button></div>';
+    box.innerHTML='<h3>Bentornato Mirko 👋</h3><p class="mut">Cosa vuoi fare?</p><div class="row"><button id="gv">Visualizza lista</button><button class="sec" id="gm">Modifica probabilità</button></div><div class="row"><button class="sec" id="gc">Chiudi</button></div>';
     box.querySelector('#gv').onclick=()=>{close();o.onOk('view')};
     box.querySelector('#gm').onclick=()=>{close();if(o.onProb)o.onProb()};
     box.querySelector('#gc').onclick=close;
@@ -430,6 +441,13 @@ function gate(o){
   };
   ov.onclick=e=>{if(e.target===ov)close()};
   if(ACC.adm&&o.admin)adminMenu();else ask();
+}
+function cambiaNome(){
+  const had=ACC.c||ACC.adm;
+  ACC={c:'',adm:false,ok:[]};saveAcc();
+  if(S.li!=null&&S.show!==false){S.show=false;rl()}
+  const ok=$('#lsuccess');
+  if(ok){ok.textContent=had?'Nome azzerato: al prossimo accesso ti verrà richiesto il cognome ✓':'Non c\'è nessun cognome inserito al momento.';ok.classList.remove('success');void ok.offsetWidth;ok.classList.add('success')}
 }
 function selL(i,mode){
   const L=ld(K.l)[i];if(!L)return;
@@ -496,9 +514,9 @@ function probCard(i){
     const LL=ld(K.l);s.forEach(j=>{LL[i].s[j].r=[a,b]});fin(LL,'Probabilità aggiornate per '+s.length+(s.length==1?' studente':' studenti'));
   };
   ov.querySelector('#pr').onclick=()=>{
-    pe.textContent='';const s=sel();
-    if(!s.length)return showErr(pe,'Errore: seleziona gli studenti da ripristinare.');
-    const LL=ld(K.l);s.forEach(j=>{delete LL[i].s[j].r});fin(LL,'Ripristinati i valori predefiniti per '+s.length+(s.length==1?' studente':' studenti'));
+    pe.textContent='';
+    const LL=ld(K.l);LL[i].s.forEach(x=>{delete x.r});
+    fin(LL,'Tutti gli studenti sono tornati ai valori predefiniti');
   };
 }
 /* configurazione */
@@ -645,12 +663,7 @@ function swap(id){
 document.body.insertAdjacentHTML('afterbegin','<div class="bg"><i class="bl" style="--k:.06;left:-12vmax;top:-10vmax;background:#22d3ee"></i><i class="bl" style="--k:-.09;right:-14vmax;top:12vmax;background:#f43f5e;animation-delay:-4s"></i><i class="bl" style="--k:.04;left:18vw;bottom:-18vmax;background:#facc15;animation-delay:-8s"></i><i class="glow"></i></div>');
 addEventListener('pointermove',e=>{const s=document.documentElement.style;s.setProperty('--mx',e.clientX-innerWidth/2);s.setProperty('--my',e.clientY-innerHeight/2);s.setProperty('--gx',e.clientX+'px');s.setProperty('--gy',e.clientY+'px')});
 document.body.insertAdjacentHTML('beforeend','<div id="sync" class="sync" hidden></div>');
-(function(){
-  let rs=null;try{rs=JSON.parse(sessionStorage.getItem('ci_resume'));sessionStorage.removeItem('ci_resume')}catch(e){}
-  if(rs&&rs.k){try{const [n,a]=JSON.parse(rs.k);if(rs.S&&n!=='home')S=Object.assign(S,rs.S);if(typeof window[n]==='function'){window[n](...(a||[]));return}}catch(e){}}
-  home();
-})();
-initCloud();
+loadServer().finally(()=>home());
 </script>
 </body>
 </html>
