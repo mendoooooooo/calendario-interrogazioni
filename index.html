@@ -208,6 +208,15 @@ h1{overflow-wrap:anywhere}
 .collapse.open{grid-template-rows:1fr;opacity:1;visibility:visible;transition:grid-template-rows .5s cubic-bezier(.4,0,.2,1),opacity .4s ease,visibility 0s}
 .collapse-in{overflow:hidden;min-height:0;padding:0 4px 12px}
 .okg{background:linear-gradient(135deg,#d1fae5,#a7f3d0)!important;color:#166534!important;border:1px solid #6ee7b7!important;box-shadow:none!important}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:rgba(148,163,184,.14);border-radius:99px;margin:4px}
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,var(--ac),var(--ac2));border-radius:99px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{filter:brightness(1.12)}
+::-webkit-scrollbar-corner{background:transparent}
+.log-list::-webkit-scrollbar-track{background:rgba(255,255,255,.08)}
+.log-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.42);background-clip:padding-box;border:2px solid transparent}
+.log-list::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.62);background-clip:padding-box}
+@supports not selector(::-webkit-scrollbar){*{scrollbar-width:thin;scrollbar-color:#38bdf8 transparent}.log-list{scrollbar-color:rgba(255,255,255,.45) transparent}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -615,7 +624,7 @@ function menu(el,id,m){
   el.parentNode.appendChild(d);
 }
 document.addEventListener('click',()=>document.querySelectorAll('.menu').forEach(x=>x.remove()));
-const calNames=()=>{const cnt={};return ld(K.c).map(c=>{cnt[c.mat]=(cnt[c.mat]||0)+1;return{id:c.id,mat:c.mat,n:c.name||'Calendario '+cnt[c.mat]}})};
+const calNames=()=>{const cnt={};return ld(K.c).map(c=>{cnt[c.mat]=(cnt[c.mat]||0)+1;return{id:c.id,mat:c.mat,n:c.name||'Calendario '+cnt[c.mat],ex:!!c.name}})};
 function renC(id,m){
   const all=ld(K.c),c=all.find(x=>x.id===id);if(!c)return;
   const cur=(calNames().find(x=>x.id===id)||{}).n||'';
@@ -623,21 +632,31 @@ function renC(id,m){
   ov.innerHTML='<div class="card delete-card gate"><h3>Rinomina calendario</h3><p class="mut">Nome attuale: <b></b></p><div class="row"><input id="rn" maxlength="40" placeholder="Nuovo nome" autocomplete="off" enterkeyhint="done"></div><p id="re" class="err"></p><div class="row"><button class="sec" id="rx">Annulla</button><button id="rs">Salva</button></div></div>';
   ov.querySelector('b').textContent=cur;
   document.body.appendChild(ov);
-  const inp=ov.querySelector('#rn'),re=ov.querySelector('#re');
+  const inp=ov.querySelector('#rn'),re=ov.querySelector('#re'),rs=ov.querySelector('#rs');
+  let was=null;
+  const find=()=>{const k=inp.value.trim().toLowerCase();if(!k)return null;return calNames().find(x=>x.id!==id&&x.n.trim().toLowerCase()===k&&(x.mat===c.mat||x.ex))||null};
+  const refresh=()=>{
+    const d=find(),key=d?d.id:null;
+    if(key===was)return;was=key;
+    rs.textContent=d?'Sostituisci':'Salva';
+    if(d)showErr(re,'Errore: esiste già un calendario chiamato "'+d.n+'" ('+T(d.mat)+'). Premendo "Sostituisci" i due calendari si scambiano il nome: questo diventerà "'+d.n+'" e quello esistente diventerà "'+cur+'". Altrimenti scrivi un altro nome o premi Annulla.');
+    else re.textContent='';
+  };
   const save=()=>{
     const nome=inp.value.trim();
     if(!nome)return showErr(re,'Errore: inserisci il nuovo nome.');
-    const k=nome.toLowerCase(),dup=ld(K.c).find(x=>x.id!==id&&x.name&&x.name.trim().toLowerCase()===k);
-    if(dup)return showErr(re,'Errore: hai già un calendario chiamato "'+dup.name+'" ('+T(dup.mat)+'). Scegli un altro nome.');
-    c.name=nome;sv(K.c,all);
+    const d=find();
+    if(d){const o=all.find(x=>x.id===d.id);o.name=cur;c.name=d.n}
+    else c.name=nome;
+    sv(K.c,all);
     ov.classList.add('fade');
     setTimeout(()=>{ov.remove();lista(m)},650);
   };
-  ov.querySelector('#rs').onclick=save;
+  rs.onclick=save;
   ov.querySelector('#rx').onclick=()=>ov.remove();
   ov.onclick=e=>{if(e.target===ov)ov.remove()};
   inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();save()}};
-  inp.oninput=()=>{re.textContent=''};
+  inp.oninput=()=>{if(!find())re.textContent='';refresh()};
   inp.focus();
 }
 const isoLocal=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -669,7 +688,7 @@ let RMSEL=[];
 function updateRmBtn(){
   const b=$('#rmpick');if(!b)return;
   if(RMSEL.length){b.className='okg';b.textContent='✓ Date selezionate'}
-  else{b.className='';b.textContent='Scegli date'}
+  else{b.className='sec';b.textContent='Scegli date'}
 }
 function pickDates(id){
   const c=ld(K.c).find(x=>x.id===id);if(!c)return;
@@ -758,7 +777,7 @@ function vedi(id,skip){
   const rmOpts=c.cols.map((k,j)=>'<option value="'+j+'">'+fmt(k.data)+'</option>').join('');
   show(`<h2>Calendario di ${T(c.mat)}</h2><div class="calendar-full"><div class="tw"></div></div>
   <div class="row"><button class="sec" onclick="lista('${c.mat}')">← Indietro</button><button onclick="toggleEdit()">Modifica</button><button class="sec" onclick="showLog(${id})">Modifiche effettuate</button></div>
-  <div id="swr" class="collapse"><div class="collapse-in"><div class="card" id="sw"><p>Cosa vuoi fare?</p><div class="row"><button id="bsw" onclick="editPanel('sw')">Scambia studenti</button><button id="brm" onclick="editPanel('rm')">Rimuovi giorno di interrogazione</button></div><div id="swf" hidden><p>Inserisci i due cognomi da scambiare</p><div class="row" style="margin:8px 0"><input id="a" placeholder="Cognome 1" onkeydown="kSw(event,${id})"><input id="na" placeholder="Nome 1" hidden onkeydown="kSw(event,${id})"><input id="b" placeholder="Cognome 2" onkeydown="kSw(event,${id})"><input id="nb" placeholder="Nome 2" hidden onkeydown="kSw(event,${id})"><button onclick="swap(${id})">Scambia</button></div><p id="werr" class="err"></p></div><div id="rmf" class="card" hidden><h3 style="margin:.2em 0 .5em">Rimuovi giorno di interrogazione</h3><p class="mut" style="margin:.3em 0">Scegli le date da eliminare. Gli studenti verranno riprogrammati nelle lezioni successive.</p><div class="row" style="margin:10px 0"><button id="rmpick" onclick="pickDates(${id})">Scegli date</button></div><p id="rme" class="err"></p><div class="row" style="margin:6px 0 2px"><button class="sec" onclick="editPanel('rm')">Annulla</button><button onclick="remDay(${id})">Conferma</button></div></div><div class="row" style="margin:6px 0 0"><button class="gry" onclick="closeEdit()">← Indietro</button></div></div></div></div>`);
+  <div id="swr" class="collapse"><div class="collapse-in"><div class="card" id="sw"><p>Cosa vuoi fare?</p><div class="row"><button id="bsw" onclick="editPanel('sw')">Scambia studenti</button><button id="brm" onclick="editPanel('rm')">Rimuovi giorno di interrogazione</button></div><div id="swf" hidden><p>Inserisci i due cognomi da scambiare</p><div class="row" style="margin:8px 0"><input id="a" placeholder="Cognome 1" onkeydown="kSw(event,${id})"><input id="na" placeholder="Nome 1" hidden onkeydown="kSw(event,${id})"><input id="b" placeholder="Cognome 2" onkeydown="kSw(event,${id})"><input id="nb" placeholder="Nome 2" hidden onkeydown="kSw(event,${id})"><button onclick="swap(${id})">Scambia</button></div><p id="werr" class="err"></p></div><div id="rmf" class="card" hidden><h3 style="margin:.2em 0 .5em">Rimuovi giorno di interrogazione</h3><p class="mut" style="margin:.3em 0">Scegli le date da eliminare. Gli studenti verranno riprogrammati nelle lezioni successive.</p><div class="row" style="margin:10px 0"><button id="rmpick" class="sec" onclick="pickDates(${id})">Scegli date</button></div><p id="rme" class="err"></p><div class="row" style="margin:6px 0 2px"><button class="sec" onclick="editPanel('rm')">Annulla</button><button onclick="remDay(${id})">Conferma</button></div></div><div class="row" style="margin:6px 0 0"><button class="gry" onclick="closeEdit()">← Indietro</button></div></div></div></div>`);
   CUR=id;layoutCal();
 }
 function showLog(id){
