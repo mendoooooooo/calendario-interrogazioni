@@ -147,7 +147,7 @@ h1{overflow-wrap:anywhere}
 .calendar-full table.chunk th,.calendar-full table.chunk td{min-width:0;white-space:normal;overflow-wrap:anywhere;padding:8px 4px}
 .log-card{width:100%;max-width:520px;max-height:85vh;display:flex;flex-direction:column;border-radius:20px;padding:20px;background:rgba(31,41,55,.82);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.18);color:#f3f4f6;box-shadow:0 20px 55px #0009;animation:pop .35s cubic-bezier(.3,1.5,.5,1)}
 .log-card h3{margin:0 0 12px;text-align:center}
-.log-list{overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:2px}
+.log-list{overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin-right:-10px;padding:2px 10px 2px 2px}
 .log-item{display:grid;grid-template-columns:auto 1fr auto;column-gap:12px;align-items:center;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);text-align:left;animation:in .35s backwards}
 .log-n{grid-row:1/span 2;align-self:center;justify-self:center;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;line-height:1;font-weight:700;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff}
 .log-t{font-weight:700}
@@ -219,6 +219,8 @@ h1{overflow-wrap:anywhere}
 @supports not selector(::-webkit-scrollbar){*{scrollbar-width:thin;scrollbar-color:#38bdf8 transparent}.log-list{scrollbar-color:rgba(255,255,255,.45) transparent}}
 .warnmsg{color:#b45309;font-weight:600;margin:8px 0;animation:shk .45s}
 .warnmsg:empty{display:none}
+.row.prange{flex-wrap:nowrap;align-items:center;gap:8px}
+.row.prange>input{flex:0 0 auto;width:80px;min-width:0}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -278,7 +280,7 @@ async function loadServer(){
 }
 const isEnter=e=>e.key==='Enter'||e.keyCode===13;
 let S={mat:null,studs:[],cfg:null},mem=null,CUR=null,curKey=null,restoring=false,rz=null;
-let ACC={c:'',adm:false,prof:false,ok:[]};
+let ACC={c:'',n:'',adm:false,prof:false,ok:[]};
 try{const a=JSON.parse(sessionStorage.getItem('ci_acc'));if(a)ACC=Object.assign(ACC,a)}catch(e){}
 const saveAcc=()=>{try{sessionStorage.setItem('ci_acc',JSON.stringify(ACC))}catch(e){}};
 const fmt=d=>new Date(d).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'});
@@ -286,6 +288,19 @@ const fmtShort=d=>new Date(d).toLocaleDateString('it-IT',{day:'2-digit',month:'2
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const cap=s=>s.trim().split(/\s+/).map(w=>w?w.charAt(0).toUpperCase()+w.slice(1).toLowerCase():'').join(' ');
 const T=m=>cap(m);
+/* confronto cognome/nome: ignora maiuscole e spazi doppi, richiede il cognome COMPLETO */
+const nz=s=>String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
+/* cognome composto: vale il cognome intero oppure una qualsiasi delle sue parole (es. "leon alvarez" → "leon", "alvarez", "leon alvarez") */
+const cm=(x,v)=>{const c=nz(x.c);return c===v||c.split(' ').includes(v)};
+const hit=(x,v,nm)=>cm(x,v)&&(!nm||nz(x.n)===nm);
+function allStuds(){
+  const a=[];
+  ld(K.l).forEach(l=>l.s.forEach(x=>a.push(x)));
+  ld(K.c).forEach(c=>c.cols.forEach(k=>k.s.forEach(x=>a.push(x))));
+  return a;
+}
+/* serve il nome solo se lo stesso cognome esiste con nomi DIVERSI */
+const needsName=v=>new Set(allStuds().filter(x=>cm(x,v)).map(x=>nz(x.n))).size>1;
 function rt(n,a){
   const key=JSON.stringify([n,a]);
   if(restoring){curKey=key;return}
@@ -449,17 +464,31 @@ function gate(o){
     box.innerHTML='<h3>'+(role==='p'?'Accesso professore':'Accesso studente')+'</h3><p class="mut">'+(role==='p'?'Scrivi il tuo cognome per accedere come professore.':'Scrivi il tuo cognome per continuare.')+'</p><div class="row"><input id="gs" placeholder="Il tuo cognome" autocomplete="off" enterkeyhint="done"></div><p id="ge" class="err"></p><div class="row"><button class="sec" id="gx">← Indietro</button><button id="gk">Continua</button></div>';
     const inp=box.querySelector('#gs'),ge=box.querySelector('#ge');
     const go=()=>{
-      const rw=inp.value.trim(),v=rw.toLowerCase();
+      const rw=inp.value.trim(),v=nz(rw);
       if(!v)return showErr(ge,'Errore: scrivi il tuo cognome.');
       if(v==='menditto')return askPw();
       if(role==='p'){
-        if(v==='presciutti'){ACC.prof=true;ACC.adm=false;ACC.c='';saveAcc();return done(o.mode)}
+        if(v==='presciutti'){ACC.prof=true;ACC.adm=false;ACC.c='';ACC.n='';saveAcc();return done(o.mode)}
         return showErr(ge,'Errore: "'+rw+'" non risulta tra i professori autorizzati.');
       }
-      if(o.check(v)){ACC.c=v;ACC.adm=false;ACC.prof=false;saveAcc();done(o.mode)}
-      else showErr(ge,o.errMsg(rw));
+      if(!o.check(v))return showErr(ge,o.errMsg(rw));
+      if(needsName(v))return askName(v,rw);
+      ACC.c=v;ACC.n='';ACC.adm=false;ACC.prof=false;saveAcc();done(o.mode);
     };
     box.querySelector('#gk').onclick=go;box.querySelector('#gx').onclick=ask0;
+    inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();go()}};inp.oninput=()=>{ge.textContent=''};inp.focus();
+  };
+  const askName=(v,rw)=>{
+    box.innerHTML='<h3>Cognome presente in più liste</h3><p class="mut">Il cognome "<b></b>" appare in più liste.</p><p>Inserisci anche il nome</p><div class="row"><input id="gn2" placeholder="Il tuo nome" autocomplete="off" enterkeyhint="done"></div><p id="ge" class="err"></p><div class="row"><button class="sec" id="gx2">Annulla</button><button id="gk">Conferma</button></div>';
+    box.querySelector('b').textContent=cap(rw);
+    const inp=box.querySelector('#gn2'),ge=box.querySelector('#ge');
+    const go=()=>{
+      const rwn=inp.value.trim(),nm=nz(rwn);
+      if(!nm)return showErr(ge,'Errore: inserisci il nome.');
+      if(!o.check(v,nm))return showErr(ge,'Errore: "'+rwn+' '+rw+'" non risulta qui. Per motivi di privacy non puoi accedere.');
+      ACC.c=v;ACC.n=nm;ACC.adm=false;ACC.prof=false;saveAcc();done(o.mode);
+    };
+    box.querySelector('#gk').onclick=go;box.querySelector('#gx2').onclick=close;
     inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();go()}};inp.oninput=()=>{ge.textContent=''};inp.focus();
   };
   const askPw=()=>{
@@ -467,7 +496,7 @@ function gate(o){
     const inp=box.querySelector('#gp'),ge=box.querySelector('#ge');
     const go=()=>{
       if(inp.value!==ADMIN_PW)return showErr(ge,'Errore: password errata.');
-      ACC.adm=true;ACC.c='';ACC.prof=false;saveAcc();
+      ACC.adm=true;ACC.c='';ACC.n='';ACC.prof=false;saveAcc();
       done(o.mode);
     };
     box.querySelector('#gk').onclick=go;box.querySelector('#gb').onclick=()=>ask('s');
@@ -478,7 +507,7 @@ function gate(o){
 }
 function cambiaNome(){
   const had=ACC.c||ACC.adm||ACC.prof;
-  ACC={c:'',adm:false,prof:false,ok:[]};saveAcc();
+  ACC={c:'',n:'',adm:false,prof:false,ok:[]};saveAcc();
   if(S.li!=null&&S.show!==false){S.show=false;rl()}
   const ok=$('#lsuccess');
   if(ok){ok.textContent=had?'Nome azzerato: al prossimo accesso ti verrà richiesto il cognome ✓':'Non c\'è nessun cognome inserito al momento.';ok.classList.remove('success');void ok.offsetWidth;ok.classList.add('success')}
@@ -487,11 +516,11 @@ function selL(i,mode){
   const L=ld(K.l)[i];if(!L)return;
   if(ACC.adm||ACC.prof)return useL(i,mode==='view');
   if(ACC.c){
-    if(L.s.some(x=>x.c.trim().toLowerCase()===ACC.c))return useL(i,mode==='view');
+    if(L.s.some(x=>hit(x,ACC.c,ACC.n)))return useL(i,mode==='view');
     return denied('questa lista','visualizzarla',()=>selL(i,mode));
   }
   gate({mode,
-    check:v=>L.s.some(x=>x.c.trim().toLowerCase()===v),
+    check:(v,nm)=>L.s.some(x=>hit(x,v,nm)),
     errMsg:n=>'Errore: il cognome "'+n+'" non risulta in questa lista. Per motivi di privacy non puoi visualizzarla.',
     onOk:act=>useL(i,act==='view')});
 }
@@ -512,8 +541,8 @@ function lmenu(el,i){
   d.onclick=e=>{e.stopPropagation();d.remove();selL(i,'view')};
   el.parentNode.appendChild(d);
 }
-const inCal=(c,v)=>c.cols.some(k=>k.s.some(x=>x.c.trim().toLowerCase()===v));
-const calOk=c=>ACC.adm||ACC.prof||ACC.ok.includes(c.id)||(ACC.c&&inCal(c,ACC.c));
+const inCal=(c,v,nm)=>c.cols.some(k=>k.s.some(x=>hit(x,v,nm)));
+const calOk=c=>ACC.adm||ACC.prof||ACC.ok.includes(c.id)||(ACC.c&&inCal(c,ACC.c,ACC.n));
 function denied(what,verb,retry){
   const ov=document.createElement('div');ov.className='ov';
   ov.innerHTML='<div class="card delete-card gate"><h3>Accesso negato</h3><p>Il cognome "<b></b>" non è presente in '+what+'. Per motivi di privacy non puoi '+verb+'.</p><div class="row"><button class="sec" id="gc">Chiudi</button><button id="gn">Cambia cognome</button></div></div>';
@@ -521,11 +550,11 @@ function denied(what,verb,retry){
   document.body.appendChild(ov);
   ov.onclick=e=>{if(e.target===ov)ov.remove()};
   ov.querySelector('#gc').onclick=()=>ov.remove();
-  ov.querySelector('#gn').onclick=()=>{ov.remove();ACC={c:'',adm:false,prof:false,ok:[]};saveAcc();retry()};
+  ov.querySelector('#gn').onclick=()=>{ov.remove();ACC={c:'',n:'',adm:false,prof:false,ok:[]};saveAcc();retry()};
 }
 function calGate(c){
   if(ACC.c&&!ACC.adm)return denied('questo calendario','visualizzarlo',()=>calGate(c));
-  gate({mode:'view',admin:false,check:v=>inCal(c,v),
+  gate({mode:'view',admin:false,check:(v,nm)=>inCal(c,v,nm),
     errMsg:n=>'Errore: il cognome "'+n+'" non risulta in questo calendario. Per motivi di privacy non puoi visualizzarlo.',
     onOk:()=>vedi(c.id,true)});
 }
@@ -533,7 +562,7 @@ function probCard(i){
   if(!ld(K.l)[i])return;
   const ov=document.createElement('div');ov.className='ov';
   const rows=()=>ld(K.l)[i].s.map((x,j)=>'<label class="li"><input type="checkbox" class="pc" value="'+j+'"><span>'+esc(x.n)+' '+esc(x.c)+'</span>'+(x.d?'<span class="tag">DSA</span>':'')+'<small class="mut" style="margin-left:auto">'+(x.r?x.r[0]+' – '+x.r[1]:'predefinito')+'</small></label>').join('');
-  ov.innerHTML='<div class="card delete-card gate prob"><h3>Modifica probabilità</h3><p class="mut" style="font-size:.85rem;margin:4px 0">Numeri bassi: interrogati prima. Numeri alti: interrogati dopo. Predefinito: da 0 a 1 (DSA: da 0,7 a 1,7).</p><div class="row" style="margin:8px 0;align-items:center"><span>Da</span><input type="number" id="pa" min="0" step="0.1" value="0" style="width:90px"><span>a</span><input type="number" id="pb" min="1" step="0.1" value="1" style="width:90px"></div><div class="row small" style="margin:4px 0"><button class="sec" id="pt">Seleziona / deseleziona tutti</button></div><div class="prob-list">'+rows()+'</div><p id="pe" class="err"></p><p id="ps" class="success"></p><div class="row"><button class="sec" id="px">Chiudi</button><button class="sec" id="pr">Ripristina</button><button id="po">Applica</button></div></div>';
+  ov.innerHTML='<div class="card delete-card gate prob"><h3>Modifica probabilità</h3><p class="mut" style="font-size:.85rem;margin:4px 0">Numeri bassi: interrogati prima. Numeri alti: interrogati dopo. Predefinito: da 0 a 1 (DSA: da 0,7 a 1,7).</p><div class="row prange" style="margin:8px 0"><span>Da</span><input type="number" id="pa" min="0" step="0.1" value="0" style="width:90px"><span>a</span><input type="number" id="pb" min="1" step="0.1" value="1" style="width:90px"></div><div class="row small" style="margin:4px 0"><button class="sec" id="pt">Seleziona / deseleziona tutti</button></div><div class="prob-list">'+rows()+'</div><p id="pe" class="err"></p><p id="ps" class="success"></p><div class="row"><button class="sec" id="px">Chiudi</button><button class="sec" id="pr">Ripristina</button><button id="po">Applica</button></div></div>';
   document.body.appendChild(ov);
   const pe=ov.querySelector('#pe'),pl=ov.querySelector('.prob-list'),sel=()=>[...ov.querySelectorAll('.pc:checked')].map(x=>+x.value);
   let tm=null;
@@ -669,6 +698,7 @@ function editPanel(w){
   sw.hidden=!swOn;rm.hidden=!rmOn;
   RMSEL=[];updateRmBtn();const re=$('#rme');if(re)re.textContent='';
   $('#bsw').classList.toggle('sec',rmOn);$('#brm').classList.toggle('sec',swOn);
+  if(swOn)setTimeout(()=>{const a=$('#a');if(a)a.focus()},60);
 }
 function toggleEdit(){
   const w=$('#swr');
@@ -737,7 +767,7 @@ function conf(id,m){
 }
 const isMob=()=>matchMedia('(max-width:600px)').matches;
 function calHtml(c,N){
-  const cell=(k,ci,r)=>{const x=k.s[r];return x?`<td data-c="${ci}" data-r="${r}"><div class="s-name">${esc(x.n)}</div><div class="s-surname">${esc(x.c)}</div>${x.d?'<div class="s-dsa"><span class="tag" style="margin:0;display:inline-block">DSA</span></div>':''}</td>`:'<td></td>'};
+  const cell=(k,ci,r)=>{const x=k.s[r];return x?`<td data-c="${ci}" data-r="${r}"><div class="s-name">${esc(x.n)}</div><div class="s-surname">${esc(x.c)}</div></td>`:'<td></td>'};
   const one=(a,b,ch)=>{
     let h=`${ch?'<div class="cw">':''}<table${ch?' class="chunk"':''}><thead><tr>`;
     for(let i=a;i<b;i++)h+=`<th>${fmtShort(c.cols[i].data)}</th>`;
