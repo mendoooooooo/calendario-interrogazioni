@@ -287,6 +287,27 @@ let S={mat:null,studs:[],cfg:null},mem=null,CUR=null,curKey=null,restoring=false
 let ACC={c:'',n:'',adm:false,prof:false,ok:[]};
 try{const a=JSON.parse(sessionStorage.getItem('ci_acc'));if(a)ACC=Object.assign(ACC,a)}catch(e){}
 const saveAcc=()=>{try{sessionStorage.setItem('ci_acc',JSON.stringify(ACC))}catch(e){}};
+/* scadenza accesso: dopo 20 minuti senza attività il cognome viene dimenticato */
+const IDLE=1*60*1000;
+let LAST=Date.now();
+try{const t=+sessionStorage.getItem('ci_last');if(t)LAST=t}catch(e){}
+function idleCheck(){
+  if(Date.now()-LAST<IDLE)return;
+  if(ACC.c||ACC.adm||ACC.prof||(ACC.ok&&ACC.ok.length)){
+    ACC={c:'',n:'',adm:false,prof:false,ok:[]};saveAcc();
+    document.querySelectorAll('.ov').forEach(x=>x.remove());
+    if(app.innerHTML)home();
+  }
+}
+function touchAct(){
+  const now=Date.now();
+  if(now-LAST>=IDLE)idleCheck();
+  if(now-LAST>1000){LAST=now;try{sessionStorage.setItem('ci_last',String(now))}catch(e){}}
+}
+['pointerdown','keydown','touchstart','wheel','scroll'].forEach(ev=>addEventListener(ev,touchAct,{passive:true,capture:true}));
+setInterval(idleCheck,15000);
+addEventListener('visibilitychange',()=>{if(!document.hidden)idleCheck()});
+addEventListener('pageshow',idleCheck);
 const fmt=d=>new Date(d).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'});
 const fmtShort=d=>new Date(d).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'2-digit'});
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
