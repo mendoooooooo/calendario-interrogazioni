@@ -71,9 +71,8 @@ td.flash{animation:fl 1.4s}
 .calendar-full th,.calendar-full td{white-space:nowrap}
 .s-name,.s-surname{white-space:nowrap;display:block;font-size:.94em}
 @media(min-width:701px){
-  .calendar-full table:not(.chunk){table-layout:auto}
-  .calendar-full th,.calendar-full td{padding-left:20px;padding-right:20px;text-align:center}
-  .calendar-full .tw{overflow-x:auto}
+  .calendar-full{width:min(1400px,calc(100vw - 60px));max-width:none;margin:10px 0 18px 50%;transform:translateX(-50%)}
+  .calendar-full th,.calendar-full td{padding-left:8px;padding-right:8px;text-align:center}
 }
 .s-name{font-weight:500;opacity:.9}
 .s-surname{font-weight:700}
