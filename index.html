@@ -288,7 +288,7 @@ let ACC={c:'',n:'',adm:false,prof:false,ok:[]};
 try{const a=JSON.parse(sessionStorage.getItem('ci_acc'));if(a)ACC=Object.assign(ACC,a)}catch(e){}
 const saveAcc=()=>{try{sessionStorage.setItem('ci_acc',JSON.stringify(ACC))}catch(e){}};
 /* scadenza accesso: dopo 20 minuti senza attività il cognome viene dimenticato */
-const IDLE=1*60*1000;
+const IDLE=20*60*1000;
 let LAST=Date.now();
 try{const t=+sessionStorage.getItem('ci_last');if(t)LAST=t}catch(e){}
 function idleCheck(){
