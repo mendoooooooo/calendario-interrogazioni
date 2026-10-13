@@ -785,7 +785,7 @@ function voteCard(id,pw,editIdx){
       if(!nm)return showErr(ve,'Errore: inserisci il nome.');
       const m=c.studs.map((s,i)=>[s,i]).filter(x=>cm(x[0],v)&&nz(x[0].n)===nm);
       if(!m.length)return showErr(ve,'Errore: "'+rn+' '+rw+'" non risulta tra i partecipanti.');
-      pickD(m[0][1]);
+      choose(m[0][1]);
     };
     box.querySelector('#vk').onclick=go;box.querySelector('#vx').onclick=()=>ov.remove();
     inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();go()}};inp.oninput=()=>{ve.textContent=''};inp.focus();
@@ -799,6 +799,15 @@ function voteCard(id,pw,editIdx){
     };
     box.querySelector('#vk').onclick=go;box.querySelector('#vx').onclick=()=>{ad=false;askC()};
     inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();go()}};inp.oninput=()=>{ve.textContent=''};inp.focus();
+  };
+  const choose=i=>{
+    const c=cal();if(!c)return ov.remove();
+    if(ad||!(c.prefs||{})[i])return pickD(i);
+    const st=c.studs[i];
+    box.innerHTML='<div style="font-size:2.4rem;line-height:1.2">✅</div><h3>Hai già inserito le preferenze</h3><p>Le preferenze per <b></b> sono già state inviate. Vuoi modificare le tue scelte?</p><div class="row"><button class="sec" id="hb">← Indietro</button><button id="hm">✏️ Modifica scelte</button></div>';
+    box.querySelector('b').textContent=st.n+' '+st.c;
+    box.querySelector('#hb').onclick=()=>ov.remove();
+    box.querySelector('#hm').onclick=()=>pickD(i);
   };
   const askS=()=>{
     const c=cal();if(!c)return ov.remove();
@@ -818,7 +827,7 @@ function voteCard(id,pw,editIdx){
       const m=c.studs.map((s,i)=>[s,i]).filter(x=>cm(x[0],v));
       if(!m.length)return showErr(ve,'Errore: il cognome "'+rw+'" non risulta tra i partecipanti di questo calendario.');
       if(m.length>1)return askN(v,rw);
-      pickD(m[0][1]);
+      choose(m[0][1]);
     };
     box.querySelector('#vk').onclick=go;box.querySelector('#vx').onclick=()=>ov.remove();
     inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();go()}};inp.oninput=()=>{ve.textContent=''};inp.focus();
