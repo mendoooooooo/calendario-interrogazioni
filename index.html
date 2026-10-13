@@ -225,6 +225,25 @@ h1{overflow-wrap:anywhere}
 .warnmsg:empty{display:none}
 .row.prange{flex-wrap:nowrap;align-items:center;gap:8px}
 .row.prange>input{flex:0 0 auto;width:80px;min-width:0}
+.li.prof{background:#3b82f6;color:#fff;font-weight:700;justify-content:center}
+.row.pr{flex-wrap:nowrap;align-items:center}
+.row.pr>input{flex:1 1 auto;width:auto;min-width:0;max-width:320px}
+.gmw{display:inline-flex;gap:8px;align-items:center}
+.infob{width:32px;height:32px;padding:0;border-radius:50%;font-size:.95rem;font-style:italic;font-family:Georgia,serif;display:inline-flex;align-items:center;justify-content:center;box-shadow:none}
+.cal.pend{border-style:dashed;border-width:2px;opacity:.88}
+.cal .st{display:block;margin-top:6px;font-size:.8rem;font-weight:600;color:#b45309}
+.vb{flex:0 0 auto;width:28px;height:28px;border-radius:8px;border:2px solid #2563eb;display:flex;align-items:center;justify-content:center;font-weight:700;color:#2563eb;background:#fff}
+.vd.sel{background:#dbeafe!important}
+.vd.sel .vb{background:#2563eb;color:#fff}
+.vd.dis{opacity:.45;cursor:not-allowed}
+.cvb button,#swr button{padding:10px 18px;font-size:.92rem}
+#swr button.gry{padding:7px 20px;font-size:.8rem}
+@media(max-width:600px){
+  .gmr>#gma{flex:1 1 100%}
+  .gmr .gmw{flex:1 1 100%;display:flex}
+  .gmr .gmw>button:not(.infob){flex:1 1 auto}
+  .gmr .gmw>.infob{flex:0 0 auto;align-self:center}
+}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -284,7 +303,7 @@ async function loadServer(){
 }
 const isEnter=e=>e.key==='Enter'||e.keyCode===13;
 let S={mat:null,studs:[],cfg:null},mem=null,CUR=null,curKey=null,restoring=false,rz=null;
-let ACC={c:'',n:'',adm:false,prof:false,ok:[]};
+let ACC={c:'',n:'',pf:'',adm:false,prof:false,ok:[]};
 try{const a=JSON.parse(sessionStorage.getItem('ci_acc'));if(a)ACC=Object.assign(ACC,a)}catch(e){}
 const saveAcc=()=>{try{sessionStorage.setItem('ci_acc',JSON.stringify(ACC))}catch(e){}};
 /* scadenza accesso: dopo 20 minuti senza attività il cognome viene dimenticato */
@@ -318,6 +337,8 @@ const nz=s=>String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
 /* cognome composto: vale il cognome intero oppure una qualsiasi delle sue parole (es. "leon alvarez" → "leon", "alvarez", "leon alvarez") */
 const cm=(x,v)=>{const c=nz(x.c);return c===v||c.split(' ').includes(v)};
 const hit=(x,v,nm)=>cm(x,v)&&(!nm||nz(x.n)===nm);
+/* il professore entra solo se il suo cognome è quello indicato nella lista/calendario */
+const profOk=p=>!!(ACC.prof&&p&&cm({c:p},ACC.pf));
 function allStuds(){
   const a=[];
   ld(K.l).forEach(l=>l.s.forEach(x=>a.push(x)));
@@ -386,17 +407,19 @@ function confM(i){
 }
 /* creazione */
 function crea(m,keep){
-  if(!keep||S.mat!==m)S={mat:m,studs:[],cfg:null,li:null,show:true};
+  if(!keep||S.mat!==m)S={mat:m,studs:[],cfg:null,li:null,show:true,prof:''};
   rt('crea',[m,1]);
   const l=ld(K.l);
   show(`<h2>Nuovo calendario: ${T(m)}</h2><div class="card create-head"><button class="back-circle" title="Torna indietro" onclick="home('crea')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button><h3>Aggiungi studenti</h3>
   <div class="row" style="margin:8px 0"><input id="n" placeholder="Nome" onkeydown="kS(event)"><input id="c" placeholder="Cognome" onkeydown="kS(event)"><label class="chk"><input type="checkbox" id="d" onkeydown="kS(event)"> DSA</label><button id="ab" onclick="addS()">Aggiungi</button></div><p id="serr" class="form-err"></p>
   <ol id="ls"></ol>
+  <div class="row pr" style="margin:10px 0"><b>Prof.</b><input id="pf" placeholder="Cognome della docente" autocomplete="off" oninput="S.prof=this.value;rl()"></div>
   <div class="row"><input id="ln" placeholder="Nome della lista" enterkeyhint="done" oninput="$('#lerr').textContent='';snewUpd()" onkeydown="if(isEnter(event)){event.preventDefault();saveL()}"><button onclick="saveL()">Salva</button><button class="sec" id="snew" hidden onclick="saveL(true)">Salva come nuova lista</button></div><p id="cur" class="mut" style="margin:0"></p><p id="lerr" class="err"></p><p id="lsuccess" class="success"></p></div>
   <div class="card" id="sl" hidden></div>
   <div class="row"><button class="sec" onclick="home('crea')">← Indietro</button><button class="sec" onclick="cambiaNome()">Cambia nome</button><button onclick="cfg()">Continua</button></div>`);
   rl();rsl();
   if(S.li!=null){const x=ld(K.l)[S.li];if(x)$('#ln').value=x.nome}
+  {const pf=$('#pf');if(pf)pf.value=S.prof||''}
 }
 function snewUpd(){const b=$('#snew'),i=$('#ln');if(!b||!i)return;const k=i.value.trim().toLowerCase();b.hidden=!(k&&ld(K.l).some(x=>x.nome.trim().toLowerCase()===k))}
 function rsl(){
@@ -405,7 +428,7 @@ function rsl(){
   if(cu)cu.textContent=(S.li!=null&&l[S.li])?`Stai modificando la lista "${l[S.li].nome}".`:'Lista non ancora salvata.';
   if(!b)return;
   b.hidden=!l.length;
-  b.innerHTML='<h3>Oppure usa una lista salvata</h3><div class="row">'+l.map((x,i)=>`<span class="lb"><button class="sec${i===S.li?' sel':''}" onclick="selL(${i},'sel')">${i===S.li?'✓ ':''}${esc(x.nome)} (${x.s.length} ${x.s.length==1?'studente':'studenti'})</button><button class="lbd" title="Altro" onclick="event.stopPropagation();lmenu(this,${i})"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button><button class="x" title="Elimina lista" onclick="confL(${i})">🗑</button></span>`).join('')+'</div>';
+  b.innerHTML='<h3>Oppure usa una lista salvata</h3><div class="row">'+l.map((x,i)=>`<span class="lb"><button class="sec${i===S.li?' sel okg':''}" onclick="selL(${i},'sel')">${i===S.li?'✓ ':''}${esc(x.nome)} (${x.s.length} ${x.s.length==1?'studente':'studenti'})</button><button class="lbd" title="Altro" onclick="event.stopPropagation();lmenu(this,${i})"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button><button class="x" title="Elimina lista" onclick="confL(${i})">🗑</button></span>`).join('')+'</div>';
 }
 function confL(i){
   const o=document.createElement('div');o.className='ov';
@@ -419,7 +442,7 @@ function rl(){
     const nm=(ld(K.l)[S.li]||{}).nome||'',n=S.studs.length;
     $('#ls').innerHTML=`<li class="li hid">🔒<span>Lista "${esc(nm)}" selezionata (${n} ${n==1?'studente':'studenti'}). I nomi sono nascosti: usa ⋮ → "Visualizza lista" per vederli.</span></li>`;return;
   }
-  $('#ls').innerHTML=S.studs.map((s,i)=>`<li class="li"><b>${i+1}</b><span>${esc(s.n)} ${esc(s.c)}</span>${s.d?'<span class="tag">DSA</span>':''}<button class="ed" title="Modifica" onclick="editS(${i})">✎</button><button class="x" onclick="S.studs.splice(${i},1);rl()">✕</button></li>`).join('');
+  $('#ls').innerHTML=((S.prof||'').trim()?'<li class="li prof">Prof. '+esc(cap(S.prof))+'</li>':'')+S.studs.map((s,i)=>`<li class="li"><b>${i+1}</b><span>${esc(s.n)} ${esc(s.c)}</span>${s.d?'<span class="tag">DSA</span>':''}<button class="ed" title="Modifica" onclick="editS(${i})">✎</button><button class="x" onclick="S.studs.splice(${i},1);rl()">✕</button></li>`).join('');
 }
 function kS(e){
   if(!isEnter(e))return;e.preventDefault();
@@ -453,20 +476,23 @@ function saveL(nuova){
   if(!S.studs.length)return errL('Errore: aggiungi almeno uno studente prima di salvare la lista.');
   let nome=$('#ln').value.trim();
   if(!nome)return errL('Errore: inserisci il nome della lista.');
+  const p=cap(($('#pf')||{}).value||'');
+  if(!p)return errL('Errore: inserisci il cognome della docente prima di salvare la lista.');
+  S.prof=p;
   const l=ld(K.l),kk=x=>x.trim().toLowerCase(),idx=l.findIndex(x=>kk(x.nome)===kk(nome));let msg;
   if(nuova){
     const b=nome;let n=2;while(l.some(x=>kk(x.nome)===kk(b+' ('+n+')')))n++;
-    nome=b+' ('+n+')';l.push({nome,s:S.studs});S.li=l.length-1;msg='Salvata come nuova lista: "'+nome+'"';
+    nome=b+' ('+n+')';l.push({nome,s:S.studs,p});S.li=l.length-1;msg='Salvata come nuova lista: "'+nome+'"';
   }else if(idx>=0){
     if(idx!==S.li)return errL(`Errore: esiste già una lista chiamata "${nome}". Scegli un altro nome oppure usa "Salva come nuova lista".`);
-    l[idx]={nome,s:S.studs};msg='Lista aggiornata!';
-  }else{l.push({nome,s:S.studs});S.li=l.length-1;msg='Lista salvata!'}
+    l[idx]={nome,s:S.studs,p};msg='Lista aggiornata!';
+  }else{l.push({nome,s:S.studs,p});S.li=l.length-1;msg='Lista salvata!'}
   $('#lerr').textContent='';$('#ln').value=nome;
-  sv(K.l,l);rsl();
+  sv(K.l,l);rsl();rl();
   const ok=$('#lsuccess');if(ok){ok.textContent=msg+' ✓';ok.classList.remove('success');void ok.offsetWidth;ok.classList.add('success')}
   const b=$('#sl');b.classList.remove('hl');void b.offsetWidth;b.classList.add('hl');b.scrollIntoView({behavior:'smooth',block:'center'});
 }
-function useL(i,show){S.li=i;S.show=!!show;$('#ln').value=ld(K.l)[i].nome;S.studs=ld(K.l)[i].s.map(x=>({...x})).sort((a,b)=>a.c.localeCompare(b.c,'it')||a.n.localeCompare(b.n,'it'));rl();rsl();window.scrollTo({top:0,behavior:'smooth'})}
+function useL(i,show){S.li=i;S.show=!!show;S.prof=ld(K.l)[i].p||'';{const pf=$('#pf');if(pf)pf.value=S.prof}$('#ln').value=ld(K.l)[i].nome;S.studs=ld(K.l)[i].s.map(x=>({...x})).sort((a,b)=>a.c.localeCompare(b.c,'it')||a.n.localeCompare(b.n,'it'));rl();rsl();window.scrollTo({top:0,behavior:'smooth'})}
 /* ===== accesso per cognome ===== */
 const ADMIN_PW='Mendo.2008';
 function showErr(el,m){if(!el)return;el.textContent=m;el.classList.remove('err');void el.offsetWidth;el.classList.add('err')}
@@ -493,8 +519,8 @@ function gate(o){
       if(!v)return showErr(ge,'Errore: scrivi il tuo cognome.');
       if(v==='menditto')return askPw();
       if(role==='p'){
-        if(v==='presciutti'){ACC.prof=true;ACC.adm=false;ACC.c='';ACC.n='';saveAcc();return done(o.mode)}
-        return showErr(ge,'Errore: "'+rw+'" non risulta tra i professori autorizzati.');
+        if(o.pcheck&&o.pcheck(v)){ACC.prof=true;ACC.pf=v;ACC.adm=false;ACC.c='';ACC.n='';saveAcc();return done(o.mode)}
+        return showErr(ge,'Errore: "'+rw+'" non risulta come docente di questa lista.');
       }
       if(!o.check(v))return showErr(ge,o.errMsg(rw));
       if(needsName(v))return askName(v,rw);
@@ -539,12 +565,14 @@ function cambiaNome(){
 }
 function selL(i,mode){
   const L=ld(K.l)[i];if(!L)return;
-  if(ACC.adm||ACC.prof)return useL(i,mode==='view');
+  if(ACC.adm||profOk(L.p))return useL(i,mode==='view');
+  if(ACC.prof)return denied('questa lista','visualizzarla',()=>selL(i,mode));
   if(ACC.c){
     if(L.s.some(x=>hit(x,ACC.c,ACC.n)))return useL(i,mode==='view');
     return denied('questa lista','visualizzarla',()=>selL(i,mode));
   }
   gate({mode,
+    pcheck:v=>cm({c:L.p||''},v),
     check:(v,nm)=>L.s.some(x=>hit(x,v,nm)),
     errMsg:n=>'Errore: il cognome "'+n+'" non risulta in questa lista. Per motivi di privacy non puoi visualizzarla.',
     onOk:act=>useL(i,act==='view')});
@@ -567,19 +595,19 @@ function lmenu(el,i){
   el.parentNode.appendChild(d);
 }
 const inCal=(c,v,nm)=>c.cols.some(k=>k.s.some(x=>hit(x,v,nm)));
-const calOk=c=>ACC.adm||ACC.prof||ACC.ok.includes(c.id)||(ACC.c&&inCal(c,ACC.c,ACC.n));
+const calOk=c=>ACC.adm||profOk(c.prof)||ACC.ok.includes(c.id)||(ACC.c&&inCal(c,ACC.c,ACC.n));
 function denied(what,verb,retry){
   const ov=document.createElement('div');ov.className='ov';
   ov.innerHTML='<div class="card delete-card gate"><h3>Accesso negato</h3><p>Il cognome "<b></b>" non è presente in '+what+'. Per motivi di privacy non puoi '+verb+'.</p><div class="row"><button class="sec" id="gc">Chiudi</button><button id="gn">Cambia cognome</button></div></div>';
-  ov.querySelector('b').textContent=cap(ACC.c);
+  ov.querySelector('b').textContent=cap(ACC.c||ACC.pf||'');
   document.body.appendChild(ov);
   ov.onclick=e=>{if(e.target===ov)ov.remove()};
   ov.querySelector('#gc').onclick=()=>ov.remove();
   ov.querySelector('#gn').onclick=()=>{ov.remove();ACC={c:'',n:'',adm:false,prof:false,ok:[]};saveAcc();retry()};
 }
 function calGate(c){
-  if(ACC.c&&!ACC.adm)return denied('questo calendario','visualizzarlo',()=>calGate(c));
-  gate({mode:'view',admin:false,check:(v,nm)=>inCal(c,v,nm),
+  if((ACC.c||ACC.prof)&&!ACC.adm)return denied('questo calendario','visualizzarlo',()=>calGate(c));
+  gate({mode:'view',admin:false,pcheck:v=>cm({c:c.prof||''},v),check:(v,nm)=>inCal(c,v,nm),
     errMsg:n=>'Errore: il cognome "'+n+'" non risulta in questo calendario. Per motivi di privacy non puoi visualizzarlo.',
     onOk:()=>vedi(c.id,true)});
 }
@@ -630,8 +658,9 @@ function cfg(){
   if(defDays.length){const t=new Date();t.setHours(12,0,0,0);do{t.setDate(t.getDate()+1)}while(!defDays.includes(t.getDay()));defDate=isoLocal(t)}
   const dn=[['Lunedì',1],['Martedì',2],['Mercoledì',3],['Giovedì',4],['Venerdì',5],['Sabato',6]];
   show(`<h2>Quando si interroga? (${T(S.mat)})</h2><div class="card"><p>Giorni di interrogazione</p><div class="row" style="margin:8px 0">${dn.map(d=>`<label class="chk"><input type="checkbox" class="dd" value="${d[1]}"${defDays.includes(d[1])?' checked':''} onchange="$('#derr').textContent=''"> ${d[0]}</label>`).join('')}</div><p id="derr" class="err"></p>
-  <p>Data di inizio</p><input type="date" id="sd" min="${todayStr()}" value="${defDate}" oninput="$('#err').textContent=''"><p id="err" class="err"></p><p>Interrogati per lezione</p><input type="number" id="pp" min="1" value="4" style="width:100px"></div>
+  <p>Data di inizio</p><input type="date" id="sd" min="${todayStr()}" value="${defDate}" oninput="$('#err').textContent=''"><p id="err" class="err"></p><p>Interrogati per lezione</p><input type="number" id="pp" min="1" value="4" style="width:100px"><hr style="border:0;border-top:1px solid var(--bd);margin:18px 0 14px"><p>Che tipo di generazione vuoi?</p><div class="row gmr" style="margin:8px 0"><button id="gma" onclick="setGm('auto')">Automatica</button><span class="gmw"><button id="gmp" onclick="setGm('pref')">Con preferenze</button><button class="infob" title="Come funziona" onclick="infoPref()">i</button></span></div></div>
   <div class="row"><button class="sec" onclick="crea('${S.mat}',1)">← Indietro</button><button onclick="gen()">Genera calendario</button></div>`);
+  setGm(S.gm||'auto');
 }
 const DN=['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
 function warnGen(msg){
@@ -661,16 +690,180 @@ function gen(force){
     const ns=S.studs.length;
     return warnGen(`Hai scelto ${days.length} giorni di interrogazione, ma con ${ns} ${ns==1?'studente':'studenti'} e ${pp} ${pp==1?'interrogato':'interrogati'} per lezione ${nd==1?'basta 1 lezione':`bastano ${nd} lezioni`}: ${unused.length==1?'il giorno':'i giorni'} ${unused.map(x=>DN[x]).join(', ')} non ${unused.length==1?'verrà usato':'verranno usati'}.`);
   }
+  if(S.gm==='pref'){
+    const al=ld(K.c);al.push({id:Date.now(),mat:S.mat,pp,days,prof:cap(S.prof||''),pending:true,studs:S.studs.map(x=>({n:x.n,c:x.c,d:x.d})),prefs:{},viaPref:true,pl:[],cols:dates.map(dt=>({data:dt,s:[]}))});
+    sv(K.c,al);return lista(S.mat);
+  }
   const cols=dates.map((dt,i)=>({data:dt,s:order.slice(i*pp,i*pp+pp)}));
-  const all=ld(K.c);all.push({id:Date.now(),mat:S.mat,pp,cols,days});sv(K.c,all);
+  const all=ld(K.c);all.push({id:Date.now(),mat:S.mat,pp,cols,days,prof:cap(S.prof||'')});sv(K.c,all);
   vedi(all[all.length-1].id,true);
+}
+function setGm(m){
+  S.gm=m;
+  [['auto','gma','Automatica'],['pref','gmp','Con preferenze']].forEach(a=>{const b=$('#'+a[1]);if(!b)return;const on=S.gm===a[0];b.className=on?'okg':'sec';b.textContent=(on?'✓ ':'')+a[2]});
+}
+function infoPref(){
+  const ov=document.createElement('div');ov.className='ov';
+  ov.innerHTML='<div class="card delete-card gate"><h3>Generazione con preferenze</h3><p style="text-align:left">Il calendario nasce vuoto, con solo le date. Ogni studente inserisce il proprio cognome e sceglie fino a 3 giorni in ordine di preferenza (1 = preferito), oppure "Per me è uguale". Quando tutti hanno votato il calendario si genera da solo: se un giorno è troppo richiesto, chi resta fuori passa alla scelta successiva. Gli studenti con DSA hanno più probabilità di ottenere il giorno desiderato.</p><div class="row"><button id="ik">Ho capito</button></div></div>';
+  document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov)ov.remove()};
+  ov.querySelector('#ik').onclick=()=>ov.remove();
+}
+function devName(){
+  const u=navigator.userAgent||'';
+  let os='Dispositivo',br='Browser';
+  if(/iPhone/.test(u))os='iPhone';else if(/iPad/.test(u))os='iPad';else if(/Android/.test(u))os='Android';else if(/Windows/.test(u))os='Windows';else if(/Mac OS X|Macintosh/.test(u))os='Mac';else if(/Linux/.test(u))os='Linux';
+  if(/Edg\//.test(u))br='Edge';else if(/OPR\/|Opera/.test(u))br='Opera';else if(/CriOS|Chrome/.test(u))br='Chrome';else if(/FxiOS|Firefox/.test(u))br='Firefox';else if(/Safari/.test(u))br='Safari';
+  return os+' · '+br;
+}
+function blockCard(c,dv){
+  const n=c.studs.length,v=Object.keys(c.prefs||{}).length;
+  const ov=document.createElement('div');ov.className='ov';
+  ov.innerHTML='<div class="card delete-card warn"><div style="font-size:2.4rem;line-height:1.2">📱🔒</div><h3>Hai già inserito le preferenze</h3><p>Da questo dispositivo sono già state inviate le preferenze per <b></b>. Ogni dispositivo può votare per un solo studente: così nessuno può votare al posto di un altro.</p><p class="mut">Hanno votato '+v+' studenti su '+n+'. Il calendario sarà pronto quando avranno votato tutti.</p><div class="row"><button class="sec" id="bc">Chiudi</button><button class="sec" id="ba">Accesso admin</button></div></div>';
+  ov.querySelector('b').textContent=dv.n+' '+dv.c;
+  document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov)ov.remove()};
+  ov.querySelector('#bc').onclick=()=>ov.remove();
+  ov.querySelector('#ba').onclick=()=>{ov.remove();voteCard(c.id,true)};
+}
+function showPrefs(id){
+  const c=ld(K.c).find(x=>x.id===id);if(!c)return;
+  const L=(c.pl||[]).slice().sort((a,b)=>a.ts-b.ts);
+  const dt=ts=>{const d=new Date(ts);return fmt(d)+' alle '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})};
+  const dl=m=>m.a?'<div>Per me è uguale</div>':m.ch.map((d,k)=>'<div>'+(k+1)+'° '+esc(cap(DN[new Date(d+'T12:00:00').getDay()]))+' '+fmt(d)+'</div>').join('');
+  const o=document.createElement('div');o.className='ov';
+  o.innerHTML='<div class="log-card"><h3>Preferenze inserite</h3><div class="log-list">'+(L.length?L.map((m,i)=>'<div class="log-item" style="animation-delay:'+(i*50)+'ms"><div class="log-n">'+(i+1)+'</div><div class="log-mid"><div class="log-t">'+esc(m.n)+' '+esc(m.c)+'</div><div class="log-s">'+dt(m.ts)+(m.dev?'<br>'+esc(m.dev):'')+'</div></div><div class="log-r" style="text-align:left"><div class="log-nd">Date selezionate:</div>'+dl(m)+'</div></div>').join(''):'<p class="log-empty">Nessuna preferenza registrata.</p>')+'</div><div class="row"><button class="sec" id="lb">← Indietro</button></div></div>';
+  document.body.appendChild(o);
+  o.querySelector('#lb').onclick=()=>o.remove();
+  o.onclick=e=>{if(e.target===o)o.remove()};
+}
+function pendCard(c){
+  let dv=null;try{dv=JSON.parse(localStorage.getItem('ci_dev_'+c.id)||'null')}catch(e){}
+  if(dv&&!ACC.adm)return blockCard(c,dv);
+  const n=c.studs.length,v=Object.keys(c.prefs||{}).length;
+  const ov=document.createElement('div');ov.className='ov';
+  ov.innerHTML='<div class="card delete-card warn"><h3>⏳ Calendario non ancora pronto</h3><p>Hanno inserito le preferenze '+v+' studenti su '+n+'. Il calendario si genera quando tutti i partecipanti della lista hanno votato.</p><div class="row"><button class="sec" id="pc">Chiudi</button><button id="pv">Inserisci preferenze</button></div></div>';
+  document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov)ov.remove()};
+  ov.querySelector('#pc').onclick=()=>ov.remove();
+  ov.querySelector('#pv').onclick=()=>{ov.remove();voteCard(c.id)};
+}
+function finalizeCal(c){
+  const n=c.studs.length,nd=c.cols.length;
+  const cp=c.cols.map((_,j)=>j<nd-1?c.pp:n-c.pp*(nd-1));
+  const out=c.cols.map(()=>[]),left=[],withP=[],free=[];
+  c.studs.forEach((s,i)=>{const p=c.prefs[i];(p&&p.ch&&p.ch.length?withP:free).push({s,p,k:Math.random()-(s.d?.7:0)})});
+  withP.sort((a,b)=>a.k-b.k).forEach(x=>{
+    const j=x.p.ch.find(d=>out[d]&&out[d].length<cp[d]);
+    if(j===undefined)left.push(x.s);else out[j].push(x.s);
+  });
+  const rest=[...left,...free.map(x=>x.s)].sort(()=>Math.random()-.5);
+  const slots=[];out.forEach((a,j)=>{for(let t=a.length;t<cp[j];t++)slots.push(j)});
+  slots.sort(()=>Math.random()-.5);
+  rest.forEach((s,t)=>out[slots[t]].push(s));
+  c.cols.forEach((k,j)=>{k.s=out[j]});
+  delete c.pending;delete c.prefs;delete c.studs;
+}
+function voteCard(id,pw){
+  const ov=document.createElement('div');ov.className='ov';
+  ov.innerHTML='<div class="card delete-card gate prob"></div>';
+  document.body.appendChild(ov);
+  const box=ov.firstChild,cal=()=>ld(K.c).find(x=>x.id===id);
+  let ad=false;
+  ov.onclick=e=>{if(e.target===ov)ov.remove()};
+  const askN=(v,rw)=>{
+    box.innerHTML='<h3>Cognome presente più volte</h3><p class="mut">Il cognome "<b></b>" appare più volte in questo calendario.</p><p>Inserisci anche il nome</p><div class="row"><input id="vn" placeholder="Il tuo nome" autocomplete="off" enterkeyhint="done"></div><p id="ve" class="err"></p><div class="row"><button class="sec" id="vx">Annulla</button><button id="vk">Conferma</button></div>';
+    box.querySelector('b').textContent=cap(rw);
+    const inp=box.querySelector('#vn'),ve=box.querySelector('#ve');
+    const go=()=>{
+      const c=cal();if(!c)return ov.remove();
+      const rn=inp.value.trim(),nm=nz(rn);
+      if(!nm)return showErr(ve,'Errore: inserisci il nome.');
+      const m=c.studs.map((s,i)=>[s,i]).filter(x=>cm(x[0],v)&&nz(x[0].n)===nm);
+      if(!m.length)return showErr(ve,'Errore: "'+rn+' '+rw+'" non risulta tra i partecipanti.');
+      pickD(m[0][1]);
+    };
+    box.querySelector('#vk').onclick=go;box.querySelector('#vx').onclick=()=>ov.remove();
+    inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();go()}};inp.oninput=()=>{ve.textContent=''};inp.focus();
+  };
+  const askP=()=>{
+    box.innerHTML='<h3>Password admin</h3><p class="mut">Inserisci la password per continuare.</p><div class="row"><input id="vp" type="password" placeholder="Password" autocomplete="off" enterkeyhint="done"></div><p id="ve" class="err"></p><div class="row"><button class="sec" id="vx">← Indietro</button><button id="vk">Conferma</button></div>';
+    const inp=box.querySelector('#vp'),ve=box.querySelector('#ve');
+    const go=()=>{
+      if(inp.value!==ADMIN_PW)return showErr(ve,'Errore: password errata.');
+      ad=true;askS();
+    };
+    box.querySelector('#vk').onclick=go;box.querySelector('#vx').onclick=()=>{ad=false;askC()};
+    inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();go()}};inp.oninput=()=>{ve.textContent=''};inp.focus();
+  };
+  const askS=()=>{
+    const c=cal();if(!c)return ov.remove();
+    box.innerHTML='<h3>Modalità admin</h3><p class="mut" style="font-size:.85rem;margin:4px 0">Scegli lo studente per cui inserire le preferenze.</p><div class="prob-list">'+c.studs.map((x,i)=>'<div class="li vd" data-i="'+i+'"><span>'+esc(x.n)+' '+esc(x.c)+'</span>'+((c.prefs||{})[i]?'<span class="tag">già votato</span>':'')+'</div>').join('')+'</div><div class="row"><button class="sec" id="vx">← Indietro</button><button id="vc">Chiudi</button></div>';
+    box.querySelector('#vc').onclick=()=>{ov.remove();lista(c.mat)};
+    box.querySelector('.prob-list').onclick=e=>{const t=e.target.closest('.vd');if(t)pickD(+t.dataset.i)};
+    box.querySelector('#vx').onclick=()=>{ad=false;askC()};
+  };
+  const askC=()=>{
+    box.innerHTML='<h3>Inserisci le tue preferenze</h3><p class="mut">Scrivi il tuo cognome.</p>'+(ACC.adm?'<p class="mut" style="font-size:.8rem">🔧 Modalità admin: puoi inserire più cognomi.</p>':'')+'<div class="row"><input id="vs" placeholder="Il tuo cognome" autocomplete="off" enterkeyhint="done"></div><p id="ve" class="err"></p><div class="row"><button class="sec" id="vx">Annulla</button><button id="vk">Continua</button></div>';
+    const inp=box.querySelector('#vs'),ve=box.querySelector('#ve');
+    const go=()=>{
+      const c=cal();if(!c)return ov.remove();
+      const rw=inp.value.trim(),v=nz(rw);
+      if(!v)return showErr(ve,'Errore: scrivi il tuo cognome.');
+      if(v==='menditto')return askP();
+      const m=c.studs.map((s,i)=>[s,i]).filter(x=>cm(x[0],v));
+      if(!m.length)return showErr(ve,'Errore: il cognome "'+rw+'" non risulta tra i partecipanti di questo calendario.');
+      if(m.length>1)return askN(v,rw);
+      pickD(m[0][1]);
+    };
+    box.querySelector('#vk').onclick=go;box.querySelector('#vx').onclick=()=>ov.remove();
+    inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();go()}};inp.oninput=()=>{ve.textContent=''};inp.focus();
+  };
+  const pickD=i=>{
+    const c0=cal(),s=c0.studs[i],pr=(c0.prefs||{})[i]||{};
+    let any=!!pr.a,sel=(pr.ch||[]).slice();
+    const draw=()=>{
+      const old=box.querySelector('.prob-list'),sc=old?old.scrollTop:0,c=cal();
+      box.innerHTML='<h3>'+esc(s.n)+' '+esc(s.c)+'</h3><p class="mut" style="font-size:.85rem;margin:4px 0">Scegli fino a 3 giorni: 1 = il preferito, 2 e 3 = alternative. Oppure scegli "Per me è uguale".</p><div class="prob-list"><div class="li vd'+(any?' sel':'')+'" data-a="1"><span class="vb">'+(any?'✓':'')+'</span><span>Per me è uguale</span></div>'+c.cols.map((k,j)=>{const r=sel.indexOf(j);return '<div class="li vd'+(r>=0?' sel':'')+(any?' dis':'')+'" data-j="'+j+'"><span class="vb">'+(r>=0?r+1:'')+'</span><span>'+esc(cap(DN[new Date(k.data+'T12:00:00').getDay()]))+' '+fmt(k.data)+'</span></div>'}).join('')+'</div><p id="ve" class="err"></p><div class="row"><button class="sec" id="vx">Annulla</button><button id="vk">Conferma</button></div>';
+      const pl=box.querySelector('.prob-list'),ve=box.querySelector('#ve');pl.scrollTop=sc;
+      pl.onclick=e=>{
+        const t=e.target.closest('.vd');if(!t)return;
+        if(t.dataset.a){any=!any;if(any)sel=[]}
+        else{
+          if(any)return;
+          const j=+t.dataset.j,q=sel.indexOf(j);
+          if(q>=0)sel.splice(q,1);
+          else if(sel.length>=3)return showErr(ve,'Errore: puoi scegliere al massimo 3 giorni.');
+          else sel.push(j);
+        }
+        draw();
+      };
+      box.querySelector('#vx').onclick=()=>ov.remove();
+      box.querySelector('#vk').onclick=()=>{
+        if(!any&&!sel.length)return showErr(ve,'Errore: scegli almeno un giorno oppure "Per me è uguale".');
+        const all=ld(K.c),cc=all.find(x=>x.id===id);if(!cc)return ov.remove();
+        cc.prefs=cc.prefs||{};cc.prefs[i]=any?{a:1}:{ch:sel.slice()};
+        cc.pl=(cc.pl||[]).filter(x=>!(x.n===s.n&&x.c===s.c));
+        cc.pl.push({n:s.n,c:s.c,ts:Date.now(),dev:devName(),a:!!any,ch:any?[]:sel.map(j=>cc.cols[j].data)});
+        if(!ACC.adm&&!ad){try{localStorage.setItem('ci_dev_'+id,JSON.stringify({n:s.n,c:s.c}))}catch(e){}}
+        const nv=Object.keys(cc.prefs).length,tot=cc.studs.length,fin=nv>=tot,mt=cc.mat;
+        if(fin)finalizeCal(cc);
+        sv(K.c,all);
+        if(ad&&!fin)return askS();
+        box.innerHTML=fin?'<h3 class="ok">✅ Fatto!</h3><p class="mut">Tutti hanno inserito le preferenze: il calendario è stato generato.</p>':'<h3 class="ok">✅ Preferenze salvate</h3><p class="mut">Hanno votato '+nv+' studenti su '+tot+'.</p>';
+        setTimeout(()=>{ov.remove();lista(mt)},1500);
+      };
+    };
+    draw();
+  };
+  if(pw)askP();else askC();
 }
 /* visualizzazione */
 function lista(m){
   const cs=ld(K.c).filter(c=>c.mat===m);
   rt('lista',[m]);
   if(!cs.length)return show(`<h2>Calendario ancora non presente</h2><p class="mut">Non hai ancora creato calendari di ${T(m)}.</p><div class="row"><button onclick="crea('${m}')">Crea qui</button><button class="sec" onclick="home('vis')">← Indietro</button></div>`);
-  show(`<h2>Calendari di ${T(m)}</h2><div class="grid">${cs.map((c,i)=>`<div class="cal" style="animation-delay:${i*70}ms" onclick="vedi(${c.id})"><span class="dots" onclick="event.stopPropagation();menu(this,${c.id},'${m}')">⋯</span>${esc(c.name||'Calendario '+(i+1))}:<span class="dt">${fmt(c.cols[0].data)} - ${fmt(c.cols[c.cols.length-1].data)}</span></div>`).join('')}</div><div class="row"><button class="sec" onclick="home('vis')">← Indietro</button></div>`);
+  show(`<h2>Calendari di ${T(m)}</h2><div class="grid">${cs.map((c,i)=>`<div class="cal${c.pending?' pend':''}" style="animation-delay:${i*70}ms" onclick="vedi(${c.id})"><span class="dots" onclick="event.stopPropagation();menu(this,${c.id},'${m}')">⋯</span>${esc(c.name||'Calendario '+(i+1))}:<span class="dt">${fmt(c.cols[0].data)} - ${fmt(c.cols[c.cols.length-1].data)}</span>${c.pending?'<span class="st">⏳ In attesa delle preferenze ('+Object.keys(c.prefs||{}).length+'/'+c.studs.length+')</span>':''}</div>`).join('')}</div><div class="row"><button class="sec" onclick="home('vis')">← Indietro</button></div>`);
 }
 function menu(el,id,m){
   document.querySelectorAll('.menu').forEach(x=>x.remove());
@@ -826,6 +1019,7 @@ function layoutCal(){
 addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(layoutCal,150)});
 function vedi(id,skip){
   const c=ld(K.c).find(x=>x.id===id);if(!c)return home();
+  if(c.pending)return pendCard(c);
   if(!skip&&!calOk(c))return calGate(c);
   if(!ACC.ok.includes(id)){ACC.ok.push(id);saveAcc()}
   rt('vedi',[id]);
@@ -833,7 +1027,7 @@ function vedi(id,skip){
   const nl=(c.log||[]).length;
   const rmOpts=c.cols.map((k,j)=>'<option value="'+j+'">'+fmt(k.data)+'</option>').join('');
   show(`<h2>Calendario di ${T(c.mat)}</h2><div class="calendar-full"><div class="tw"></div></div>
-  <div class="row"><button class="sec" onclick="lista('${c.mat}')">← Indietro</button><button onclick="toggleEdit()">Modifica</button><button class="sec" onclick="showLog(${id})">Modifiche effettuate</button></div>
+  <div class="row cvb"><button class="sec" onclick="lista('${c.mat}')">← Indietro</button><button onclick="toggleEdit()">Modifica</button><button class="sec" onclick="showLog(${id})">Modifiche effettuate</button>${c.viaPref?'<button class="sec" onclick="showPrefs('+id+')">Preferenze inserite</button>':''}</div>
   <div id="swr" class="collapse"><div class="collapse-in"><div class="card" id="sw"><p>Cosa vuoi fare?</p><div class="row"><button id="bsw" onclick="editPanel('sw')">Scambia studenti</button><button id="brm" onclick="editPanel('rm')">Rimuovi giorno di interrogazione</button></div><div id="swf" hidden><p>Inserisci i due cognomi da scambiare</p><div class="row" style="margin:8px 0"><input id="a" placeholder="Cognome 1" onkeydown="kSw(event,${id})"><input id="na" placeholder="Nome 1" hidden onkeydown="kSw(event,${id})"><input id="b" placeholder="Cognome 2" onkeydown="kSw(event,${id})"><input id="nb" placeholder="Nome 2" hidden onkeydown="kSw(event,${id})"><button onclick="swap(${id})">Scambia</button></div><p id="werr" class="err"></p></div><div id="rmf" class="card" hidden><h3 style="margin:.2em 0 .5em">Rimuovi giorno di interrogazione</h3><p class="mut" style="margin:.3em 0">Scegli le date da eliminare. Gli studenti verranno riprogrammati nelle lezioni successive.</p><div class="row" style="margin:10px 0"><button id="rmpick" class="sec" onclick="pickDates(${id})">Scegli date</button></div><p id="rme" class="err"></p><div class="row" style="margin:6px 0 2px"><button class="sec" onclick="editPanel('rm')">Annulla</button><button onclick="remDay(${id})">Conferma</button></div></div><div class="row" style="margin:6px 0 0"><button class="gry" onclick="closeEdit()">← Indietro</button></div></div></div></div>`);
   CUR=id;layoutCal();
 }
