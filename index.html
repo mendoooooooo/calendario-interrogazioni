@@ -658,7 +658,7 @@ function cfg(){
   if(defDays.length){const t=new Date();t.setHours(12,0,0,0);do{t.setDate(t.getDate()+1)}while(!defDays.includes(t.getDay()));defDate=isoLocal(t)}
   const dn=[['Lunedì',1],['Martedì',2],['Mercoledì',3],['Giovedì',4],['Venerdì',5],['Sabato',6]];
   show(`<h2>Quando si interroga? (${T(S.mat)})</h2><div class="card"><p>Giorni di interrogazione</p><div class="row" style="margin:8px 0">${dn.map(d=>`<label class="chk"><input type="checkbox" class="dd" value="${d[1]}"${defDays.includes(d[1])?' checked':''} onchange="$('#derr').textContent=''"> ${d[0]}</label>`).join('')}</div><p id="derr" class="err"></p>
-  <p>Data di inizio (primo giorno di interrogazione)</p><input type="date" id="sd" min="${todayStr()}" value="${defDate}" oninput="$('#err').textContent=''"><p id="err" class="err"></p><p>Interrogati per lezione</p><input type="number" id="pp" min="1" value="4" style="width:100px"><hr style="border:0;border-top:1px solid var(--bd);margin:18px 0 14px"><p>Che tipo di generazione vuoi?</p><div class="row gmr" style="margin:8px 0"><button id="gma" onclick="setGm('auto')">Automatica</button><span class="gmw"><button id="gmp" onclick="setGm('pref')">Con preferenze</button><button class="infob" title="Come funziona" onclick="infoPref()">i</button></span></div></div>
+  <p>Data di inizio</p><input type="date" id="sd" min="${todayStr()}" value="${defDate}" oninput="$('#err').textContent=''"><p id="err" class="err"></p><p>Interrogati per lezione</p><input type="number" id="pp" min="1" value="4" style="width:100px"><hr style="border:0;border-top:1px solid var(--bd);margin:18px 0 14px"><p>Che tipo di generazione vuoi?</p><div class="row gmr" style="margin:8px 0"><button id="gma" onclick="setGm('auto')">Automatica</button><span class="gmw"><button id="gmp" onclick="setGm('pref')">Con preferenze</button><button class="infob" title="Come funziona" onclick="infoPref()">i</button></span></div></div>
   <div class="row"><button class="sec" onclick="crea('${S.mat}',1)">← Indietro</button><button onclick="gen()">Genera calendario</button></div>`);
   setGm(S.gm||'auto');
 }
@@ -704,7 +704,7 @@ function setGm(m){
 }
 function infoPref(){
   const ov=document.createElement('div');ov.className='ov';
-  ov.innerHTML='<div class="card delete-card gate"><h3>Generazione con preferenze</h3><p style="text-align:left">Il calendario nasce vuoto, con solo le date. Ogni studente inserisce il proprio cognome e sceglie fino a 3 giorni in ordine di preferenza (1 = preferito), oppure "Per me è uguale". Quando tutti hanno votato il calendario si genera da solo: se un giorno è troppo richiesto, chi resta fuori passa alla scelta successiva. Gli studenti con DSA hanno più probabilità di ottenere il giorno desiderato.</p><div class="row"><button id="ik">Ho capito</button></div></div>';
+  ov.innerHTML='<div class="card delete-card gate"><h3>Generazione con preferenze</h3><p style="text-align:left">Il calendario nasce vuoto, con solo le date. Ogni studente inserisce il proprio cognome e sceglie fino a 3 giorni in ordine di preferenza (1 = preferito), oppure "Per me è uguale". Quando tutti hanno votato il calendario si genera da solo: se un giorno è troppo richiesto, chi resta fuori passa alla scelta successiva. Gli studenti con DSA hanno più probabilità di ottenere il giorno desiderato. Chi sceglie "Per me è uguale" ha molta più probabilità di essere interrogato nei primi giorni.</p><div class="row"><button id="ik">Ho capito</button></div></div>';
   document.body.appendChild(ov);
   ov.onclick=e=>{if(e.target===ov)ov.remove()};
   ov.querySelector('#ik').onclick=()=>ov.remove();
@@ -719,11 +719,12 @@ function devName(){
 function blockCard(c,dv){
   const n=c.studs.length,v=Object.keys(c.prefs||{}).length;
   const ov=document.createElement('div');ov.className='ov';
-  ov.innerHTML='<div class="card delete-card warn"><div style="font-size:2.4rem;line-height:1.2">📱🔒</div><h3>Hai già inserito le preferenze</h3><p>Da questo dispositivo sono già state inviate le preferenze per <b></b>. Ogni dispositivo può votare per un solo studente: così nessuno può votare al posto di un altro.</p><p class="mut">Hanno votato '+v+' studenti su '+n+'. Il calendario sarà pronto quando avranno votato tutti.</p><div class="row"><button class="sec" id="bc">Chiudi</button><button class="sec" id="ba">Accesso admin</button></div></div>';
+  ov.innerHTML='<div class="card delete-card warn"><div style="font-size:2.4rem;line-height:1.2">📱🔒</div><h3>Hai già inserito le preferenze</h3><p>Da questo dispositivo sono già state inviate le preferenze per <b></b>. Ogni dispositivo può votare per un solo studente: così nessuno può votare al posto di un altro.</p><p class="mut">Hanno votato '+v+' studenti su '+n+'. Il calendario sarà pronto quando avranno votato tutti.</p><div class="row"><button class="sec" id="bc">← Indietro</button><button id="be">✏️ Modifica scelte</button></div><div class="row small" style="margin:4px 0 0"><button class="sec" id="ba">Accesso admin</button></div></div>';
   ov.querySelector('b').textContent=dv.n+' '+dv.c;
   document.body.appendChild(ov);
   ov.onclick=e=>{if(e.target===ov)ov.remove()};
   ov.querySelector('#bc').onclick=()=>ov.remove();
+  ov.querySelector('#be').onclick=()=>{ov.remove();const ix=c.studs.findIndex(x=>x.n===dv.n&&x.c===dv.c);voteCard(c.id,false,ix>=0?ix:undefined)};
   ov.querySelector('#ba').onclick=()=>{ov.remove();voteCard(c.id,true)};
 }
 function showPrefs(id){
@@ -757,14 +758,17 @@ function finalizeCal(c){
     const j=x.p.ch.find(d=>out[d]&&out[d].length<cp[d]);
     if(j===undefined)left.push(x.s);else out[j].push(x.s);
   });
-  const rest=[...left,...free.map(x=>x.s)].sort(()=>Math.random()-.5);
-  const slots=[];out.forEach((a,j)=>{for(let t=a.length;t<cp[j];t++)slots.push(j)});
-  slots.sort(()=>Math.random()-.5);
-  rest.forEach((s,t)=>out[slots[t]].push(s));
+  const sp=Math.max(1,nd*0.3);
+  const slots=[];out.forEach((a,j)=>{for(let t=a.length;t<cp[j];t++)slots.push({j,k:j+Math.random()*sp})});
+  slots.sort((a,b)=>a.k-b.k);
+  const anyS=free.map(x=>x.s).sort(()=>Math.random()-.5);
+  anyS.forEach((st,t)=>out[slots[t].j].push(st));
+  const rem=slots.slice(anyS.length).sort(()=>Math.random()-.5);
+  left.forEach((st,t)=>out[rem[t].j].push(st));
   c.cols.forEach((k,j)=>{k.s=out[j]});
   delete c.pending;delete c.prefs;delete c.studs;
 }
-function voteCard(id,pw){
+function voteCard(id,pw,editIdx){
   const ov=document.createElement('div');ov.className='ov';
   ov.innerHTML='<div class="card delete-card gate prob"></div>';
   document.body.appendChild(ov);
@@ -838,7 +842,7 @@ function voteCard(id,pw){
         }
         draw();
       };
-      box.querySelector('#vx').onclick=()=>ov.remove();
+      box.querySelector('#vx').onclick=()=>{if(ad)askS();else ov.remove()};
       box.querySelector('#vk').onclick=()=>{
         if(!any&&!sel.length)return showErr(ve,'Errore: scegli almeno un giorno oppure "Per me è uguale".');
         const all=ld(K.c),cc=all.find(x=>x.id===id);if(!cc)return ov.remove();
@@ -856,7 +860,7 @@ function voteCard(id,pw){
     };
     draw();
   };
-  if(pw)askP();else askC();
+  if(editIdx!==undefined)pickD(editIdx);else if(pw)askP();else askC();
 }
 /* visualizzazione */
 function lista(m){
@@ -1020,6 +1024,7 @@ addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(layoutCal,150)});
 function vedi(id,skip){
   const c=ld(K.c).find(x=>x.id===id);if(!c)return home();
   if(c.pending)return pendCard(c);
+  const ro=ACC.prof&&!ACC.adm;
   if(!skip&&!calOk(c))return calGate(c);
   if(!ACC.ok.includes(id)){ACC.ok.push(id);saveAcc()}
   rt('vedi',[id]);
@@ -1027,7 +1032,7 @@ function vedi(id,skip){
   const nl=(c.log||[]).length;
   const rmOpts=c.cols.map((k,j)=>'<option value="'+j+'">'+fmt(k.data)+'</option>').join('');
   show(`<h2>Calendario di ${T(c.mat)}</h2><div class="calendar-full"><div class="tw"></div></div>
-  <div class="row cvb"><button class="sec" onclick="lista('${c.mat}')">← Indietro</button><button onclick="toggleEdit()">Modifica</button><button class="sec" onclick="showLog(${id})">Modifiche effettuate</button>${c.viaPref?'<button class="sec" onclick="showPrefs('+id+')">Preferenze inserite</button>':''}</div>
+  <div class="row cvb"><button class="sec" onclick="lista('${c.mat}')">← Indietro</button>${ro?'':`<button onclick="toggleEdit()">Modifica</button><button class="sec" onclick="showLog(${id})">Modifiche effettuate</button>${c.viaPref?'<button class="sec" onclick="showPrefs('+id+')">Preferenze inserite</button>':''}`}</div>
   <div id="swr" class="collapse"><div class="collapse-in"><div class="card" id="sw"><p>Cosa vuoi fare?</p><div class="row"><button id="bsw" onclick="editPanel('sw')">Scambia studenti</button><button id="brm" onclick="editPanel('rm')">Rimuovi giorno di interrogazione</button></div><div id="swf" hidden><p>Inserisci i due cognomi da scambiare</p><div class="row" style="margin:8px 0"><input id="a" placeholder="Cognome 1" onkeydown="kSw(event,${id})"><input id="na" placeholder="Nome 1" hidden onkeydown="kSw(event,${id})"><input id="b" placeholder="Cognome 2" onkeydown="kSw(event,${id})"><input id="nb" placeholder="Nome 2" hidden onkeydown="kSw(event,${id})"><button onclick="swap(${id})">Scambia</button></div><p id="werr" class="err"></p></div><div id="rmf" class="card" hidden><h3 style="margin:.2em 0 .5em">Rimuovi giorno di interrogazione</h3><p class="mut" style="margin:.3em 0">Scegli le date da eliminare. Gli studenti verranno riprogrammati nelle lezioni successive.</p><div class="row" style="margin:10px 0"><button id="rmpick" class="sec" onclick="pickDates(${id})">Scegli date</button></div><p id="rme" class="err"></p><div class="row" style="margin:6px 0 2px"><button class="sec" onclick="editPanel('rm')">Annulla</button><button onclick="remDay(${id})">Conferma</button></div></div><div class="row" style="margin:6px 0 0"><button class="gry" onclick="closeEdit()">← Indietro</button></div></div></div></div>`);
   CUR=id;layoutCal();
 }
