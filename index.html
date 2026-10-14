@@ -338,7 +338,10 @@ const nz=s=>String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
 const cm=(x,v)=>{const c=nz(x.c);return c===v||c.split(' ').includes(v)};
 const hit=(x,v,nm)=>cm(x,v)&&(!nm||nz(x.n)===nm);
 /* il professore entra solo se il suo cognome è quello indicato nella lista/calendario */
-const profOk=p=>!!(ACC.prof&&p&&cm({c:p},ACC.pf));
+/* Presciutti è autorizzato ad accedere alle risorse dei docenti, indipendentemente dal docente associato alla lista. */
+const DOCENTI_AUTORIZZATI=['presciutti'];
+const profAutorizzato=v=>DOCENTI_AUTORIZZATI.includes(nz(v));
+const profOk=p=>!!(ACC.prof&&p&&(profAutorizzato(ACC.pf)||cm({c:p},ACC.pf)));
 function allStuds(){
   const a=[];
   ld(K.l).forEach(l=>l.s.forEach(x=>a.push(x)));
@@ -519,7 +522,7 @@ function gate(o){
       if(!v)return showErr(ge,'Errore: scrivi il tuo cognome.');
       if(v==='menditto')return askPw();
       if(role==='p'){
-        if(o.pcheck&&o.pcheck(v)){ACC.prof=true;ACC.pf=v;ACC.adm=false;ACC.c='';ACC.n='';saveAcc();return done(o.mode)}
+        if(profAutorizzato(v)||(o.pcheck&&o.pcheck(v))){ACC.prof=true;ACC.pf=v;ACC.adm=false;ACC.c='';ACC.n='';saveAcc();return done(o.mode)}
         return showErr(ge,'Errore: "'+rw+'" non risulta come docente di questa lista.');
       }
       if(!o.check(v))return showErr(ge,o.errMsg(rw));
