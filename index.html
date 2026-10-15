@@ -244,6 +244,27 @@ h1{overflow-wrap:anywhere}
   .gmr .gmw>button:not(.infob){flex:1 1 auto}
   .gmr .gmw>.infob{flex:0 0 auto;align-self:center}
 }
+.lg{display:grid;grid-template-columns:auto 1fr;column-gap:12px;align-items:start;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);text-align:left;animation:in .35s backwards}
+.lg .log-n{grid-row:auto;margin-top:2px}
+.lg-b{min-width:0}
+.lg-w{font-size:.75rem;opacity:.75;line-height:1.35}
+.lg-rows{margin-top:6px}
+.lr{display:flex;align-items:center;gap:8px;padding:4px 0;border-top:1px solid rgba(255,255,255,.1);font-size:.85rem;line-height:1.3}
+.lr-n{font-weight:600;min-width:0;flex:0 1 auto;overflow-wrap:anywhere}
+.lr-a{flex:1 1 0;min-width:56px;display:flex;align-items:center;gap:5px;opacity:.8}
+.lr-a b{font-size:.6rem;letter-spacing:.05em;white-space:nowrap;font-weight:700}
+.lr-a i{flex:1;height:1px;background:currentColor;position:relative;min-width:6px}
+.lr-a i.h::after{content:"";position:absolute;right:-1px;top:-3.5px;border:4px solid transparent;border-left:6px solid currentColor;border-right:0}
+.lr-v{text-align:right;white-space:nowrap;flex:0 0 auto}
+.lr-v small{display:block;font-size:.7rem;opacity:.75;white-space:nowrap}
+@media(max-width:600px){.lg{padding:10px;column-gap:8px}.lg .log-n{width:24px;height:24px;font-size:.75rem}.lr{gap:5px;font-size:.78rem}.lr-n{max-width:34%}.lr-a{min-width:48px;gap:3px}.lr-a b{font-size:.5rem}}
+.lg-d{font-size:.85rem;font-weight:500;line-height:1.35;margin-top:1px}
+.lg-t{margin-top:5px}
+.lg-t span{display:inline-block;font-size:.7rem;font-style:italic;line-height:1.35;padding:2px 9px;border-radius:99px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14);opacity:.85}
+.log-n,.lg .log-n{display:block!important;box-sizing:border-box;flex:none;padding:0!important;text-align:center;width:32px;height:32px;line-height:32px!important;font-variant-numeric:proportional-nums;text-indent:0;letter-spacing:0;justify-self:start}
+.lg .log-n{margin-top:1px;align-self:start}
+.log-n,.lg .log-n{padding:0 0 0 2px!important}
+@media(max-width:600px){.lg .log-n{width:24px;height:24px;line-height:24px!important}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -757,10 +778,19 @@ function finalizeCal(c){
   const cp=c.cols.map((_,j)=>j<nd-1?c.pp:n-c.pp*(nd-1));
   const out=c.cols.map(()=>[]),left=[],withP=[],free=[];
   c.studs.forEach((s,i)=>{const p=c.prefs[i];(p&&p.ch&&p.ch.length?withP:free).push({s,p,k:Math.random()-(s.d?.7:0)})});
-  withP.sort((a,b)=>a.k-b.k).forEach(x=>{
-    const j=x.p.ch.find(d=>out[d]&&out[d].length<cp[d]);
-    if(j===undefined)left.push(x.s);else out[j].push(x.s);
-  });
+  /* a turni: prima tutte le 1ª scelte, poi le 2ª nei posti rimasti, poi le 3ª.
+     Così una 1ª scelta ha sempre la precedenza su una 2ª/3ª scelta di un altro studente. */
+  let pend=withP.slice();
+  for(let rd=0;rd<3&&pend.length;rd++){
+    const by={},next=[];
+    pend.forEach(x=>{const d=x.p.ch[rd];if(d===undefined||!out[d])next.push(x);else(by[d]=by[d]||[]).push(x)});
+    Object.keys(by).forEach(d=>{
+      const g=by[d].sort((a,b)=>a.k-b.k),fr=cp[d]-out[d].length;
+      g.forEach((x,t)=>{if(t<fr)out[d].push(x.s);else next.push(x)});
+    });
+    pend=next;
+  }
+  pend.forEach(x=>left.push(x.s));
   const sp=Math.max(1,nd*0.3);
   const slots=[];out.forEach((a,j)=>{for(let t=a.length;t<cp[j];t++)slots.push({j,k:j+Math.random()*sp})});
   slots.sort((a,b)=>a.k-b.k);
@@ -982,7 +1012,7 @@ function remDay(id){
   const dates=cc.cols.map(k=>k.data).filter((_,j)=>!sel.includes(j));
   let last=oldLast;sel.forEach(()=>{last=nextDate(last,days);dates.push(last)});
   cc.cols.forEach((k,x)=>{k.data=dates[x]});
-  (cc.log=cc.log||[]).push({t:'rem',day:removed[0],days:removed,ts:Date.now()});
+  (cc.log=cc.log||[]).push({t:'rem',day:removed[0],days:removed,ts:Date.now(),dev:devName()});
   RMSEL=[];sv(K.c,all);vedi(id,true);
 }
 function kSw(e,id){
@@ -1000,13 +1030,17 @@ function conf(id,m){
   o.querySelector('#si').onclick=()=>{sv(K.c,ld(K.c).filter(c=>c.id!==id));o.remove();ld(K.c).some(c=>c.mat===m)?lista(m):home()};
 }
 const isMob=()=>matchMedia('(max-width:600px)').matches;
+const dayLbl=d=>cap(DN[new Date(d+'T12:00:00').getDay()]);
+/* numero di righe = quante ne servono alla colonna più lunga (le altre colonne restano invariate) */
+const nrows=c=>Math.max(1,...c.cols.map(k=>k.s.length));
 function calHtml(c,N){
   const cell=(k,ci,r)=>{const x=k.s[r];return x?`<td data-c="${ci}" data-r="${r}"><div class="s-name">${esc(x.n)}</div><div class="s-surname">${esc(x.c)}</div></td>`:'<td></td>'};
   const one=(a,b,ch)=>{
     let h=`${ch?'<div class="cw">':''}<table${ch?' class="chunk"':''}><thead><tr>`;
-    for(let i=a;i<b;i++)h+=`<th>${fmtShort(c.cols[i].data)}</th>`;
+    for(let i=a;i<b;i++)h+=`<th>${dayLbl(c.cols[i].data)}<br>${fmtShort(c.cols[i].data)}</th>`;
     h+='</tr></thead><tbody>';
-    for(let r=0;r<c.pp;r++){h+='<tr>';for(let i=a;i<b;i++)h+=cell(c.cols[i],i,r);h+='</tr>'}
+    const nr=nrows(c);
+    for(let r=0;r<nr;r++){h+='<tr>';for(let i=a;i<b;i++)h+=cell(c.cols[i],i,r);h+='</tr>'}
     return h+'</tbody></table>'+(ch?'</div>':'');
   };
   if(!N)return one(0,c.cols.length,false);
@@ -1024,7 +1058,7 @@ function layoutCal(){
   }
   tw.innerHTML=calHtml(c,N);
   if(N){
-    const ts=[...tw.querySelectorAll('table.chunk')],nr=c.pp+1;
+    const ts=[...tw.querySelectorAll('table.chunk')],nr=nrows(c)+1;
     for(let r=0;r<nr;r++){
       let h=0;
       ts.forEach(t=>{const tr=t.rows[r];if(tr)h=Math.max(h,tr.getBoundingClientRect().height)});
@@ -1045,14 +1079,138 @@ function vedi(id,skip){
   const rmOpts=c.cols.map((k,j)=>'<option value="'+j+'">'+fmt(k.data)+'</option>').join('');
   show(`<h2>Calendario di ${T(c.mat)}</h2><div class="calendar-full"><div class="tw"></div></div>
   <div class="row cvb"><button class="sec" onclick="lista('${c.mat}')">← Indietro</button>${ro?'':`<button onclick="toggleEdit()">Modifica</button><button class="sec" onclick="showLog(${id})">Modifiche effettuate</button>${c.viaPref?'<button class="sec" onclick="showPrefs('+id+')">Preferenze inserite</button>':''}`}</div>
-  <div id="swr" class="collapse"><div class="collapse-in"><div class="card" id="sw"><p>Cosa vuoi fare?</p><div class="row"><button id="bsw" onclick="editPanel('sw')">Scambia studenti</button><button id="brm" onclick="editPanel('rm')">Rimuovi giorno di interrogazione</button></div><div id="swf" hidden><p>Inserisci i due cognomi da scambiare</p><div class="row" style="margin:8px 0"><input id="a" placeholder="Cognome 1" onkeydown="kSw(event,${id})"><input id="na" placeholder="Nome 1" hidden onkeydown="kSw(event,${id})"><input id="b" placeholder="Cognome 2" onkeydown="kSw(event,${id})"><input id="nb" placeholder="Nome 2" hidden onkeydown="kSw(event,${id})"><button onclick="swap(${id})">Scambia</button></div><p id="werr" class="err"></p></div><div id="rmf" class="card" hidden><h3 style="margin:.2em 0 .5em">Rimuovi giorno di interrogazione</h3><p class="mut" style="margin:.3em 0">Scegli le date da eliminare. Gli studenti verranno riprogrammati nelle lezioni successive.</p><div class="row" style="margin:10px 0"><button id="rmpick" class="sec" onclick="pickDates(${id})">Scegli date</button></div><p id="rme" class="err"></p><div class="row" style="margin:6px 0 2px"><button class="sec" onclick="editPanel('rm')">Annulla</button><button onclick="remDay(${id})">Conferma</button></div></div><div class="row" style="margin:6px 0 0"><button class="gry" onclick="closeEdit()">← Indietro</button></div></div></div></div>`);
+  <div id="swr" class="collapse"><div class="collapse-in"><div class="card" id="sw"><p>Cosa vuoi fare?</p><div class="row"><button id="bsw" onclick="editPanel('sw')">Scambia studenti</button><button id="brm" onclick="editPanel('rm')">Rimuovi giorno di interrogazione</button><button id="btb" onclick="tabCard(${id})">Modifica tabella</button></div><div id="swf" hidden><p>Inserisci i due cognomi da scambiare</p><div class="row" style="margin:8px 0"><input id="a" placeholder="Cognome 1" onkeydown="kSw(event,${id})"><input id="na" placeholder="Nome 1" hidden onkeydown="kSw(event,${id})"><input id="b" placeholder="Cognome 2" onkeydown="kSw(event,${id})"><input id="nb" placeholder="Nome 2" hidden onkeydown="kSw(event,${id})"><button onclick="swap(${id})">Scambia</button></div><p id="werr" class="err"></p></div><div id="rmf" class="card" hidden><h3 style="margin:.2em 0 .5em">Rimuovi giorno di interrogazione</h3><p class="mut" style="margin:.3em 0">Scegli le date da eliminare. Gli studenti verranno riprogrammati nelle lezioni successive.</p><div class="row" style="margin:10px 0"><button id="rmpick" class="sec" onclick="pickDates(${id})">Scegli date</button></div><p id="rme" class="err"></p><div class="row" style="margin:6px 0 2px"><button class="sec" onclick="editPanel('rm')">Annulla</button><button onclick="remDay(${id})">Conferma</button></div></div><div class="row" style="margin:6px 0 0"><button class="gry" onclick="closeEdit()">← Indietro</button></div></div></div></div>`);
   CUR=id;layoutCal();
+}
+/* ===== Modifica tabella ===== */
+function applyMoves(c,mv){
+  const set=new Set(mv.map(m=>m.s));
+  c.cols.forEach(k=>{k.s=k.s.filter(x=>!set.has(x))});
+  mv.forEach(m=>m.to.s.push(m.s));
+  c.cols=c.cols.filter(k=>k.s.length); /* colonne rimaste vuote eliminate, le altre non cambiano */
+}
+/* data casuale tra quelle scelte; se il calendario è nato con preferenze le usa come pesi */
+function pickRnd(c,x,ch){
+  ch=ch.slice().sort((a,b)=>a-b);
+  const p=(c.pl||[]).find(m=>m.n===x.n&&m.c===x.c);
+  const w=ch.map((j,t)=>{
+    if(!p)return 1;
+    if(p.a)return ch.length-t;
+    const r=p.ch.indexOf(c.cols[j].data);
+    return r>=0?[8,4,2][r]||2:1;
+  });
+  let r=Math.random()*w.reduce((a,b)=>a+b,0);
+  for(let t=0;t<ch.length;t++){r-=w[t];if(r<0)return ch[t]}
+  return ch[ch.length-1];
+}
+function tabCard(id){
+  const ov=document.createElement('div');ov.className='ov';
+  ov.innerHTML='<div class="card delete-card gate prob"></div>';
+  document.body.appendChild(ov);
+  const box=ov.firstChild,cal=()=>ld(K.c).find(x=>x.id===id),q=s=>box.querySelector(s);
+  const dl=d=>cap(DN[new Date(d+'T12:00:00').getDay()])+' '+fmt(d);
+  const ds=d=>cap(DN[new Date(d+'T12:00:00').getDay()]).slice(0,3)+' '+fmtShort(d);
+  let Q=[],M={},src=0,busy=false;
+  ov.onclick=e=>{if(e.target===ov&&!busy)ov.remove()};
+  const top=()=>{
+    busy=false;Q=[];M={};
+    box.innerHTML='<h3>Modifica tabella</h3><p class="mut">Cosa vuoi fare?</p><div class="row"><button id="t1">Sposta studenti</button><button id="t2">Sposta da una data</button></div><div class="row"><button class="sec" id="tx">Chiudi</button></div>';
+    q('#t1').onclick=o1;q('#t2').onclick=o2;q('#tx').onclick=()=>ov.remove();
+  };
+  /* ---- 1: scelgo gli studenti, poi la loro nuova data ---- */
+  const o1=()=>{
+    const c=cal();if(!c)return ov.remove();
+    busy=Q.length>0;
+    const inQ=(ci,ri)=>Q.some(z=>z.ci===ci&&z.ri===ri);
+    box.innerHTML='<h3>Sposta studenti</h3><p class="mut" style="font-size:.85rem;margin:4px 0">Tocca uno studente, poi scegli la nuova data.</p><div class="prob-list">'
+     +c.cols.map((k,ci)=>k.s.map((x,ri)=>'<div class="li vd" data-c="'+ci+'" data-r="'+ri+'"><span>'+esc(x.n)+' '+esc(x.c)+'</span>'+(inQ(ci,ri)?'<span class="tag">spostato</span>':'')+'<small class="mut" style="margin-left:auto">'+ds(k.data)+'</small></div>').join('')).join('')+'</div>'
+     +(Q.length?'<p style="margin:8px 0 2px;text-align:left"><b>Spostamenti:</b></p><div class="prob-list" style="max-height:20vh">'+Q.map((z,i)=>{const x=c.cols[z.ci].s[z.ri];return '<div class="li"><span>'+esc(x.n)+' '+esc(x.c)+' → '+dl(c.cols[z.to].data)+'</span><button class="x" data-q="'+i+'">✕</button></div>'}).join('')+'</div>':'')
+     +'<p id="te" class="err"></p><div class="row"><button class="sec" id="bx">← Indietro</button><button id="bk"'+(Q.length?'':' disabled')+'>Conferma</button></div>';
+    const ls=box.querySelectorAll('.prob-list');
+    ls[0].onclick=e=>{const t=e.target.closest('.vd');if(t)o1b(+t.dataset.c,+t.dataset.r)};
+    if(ls[1])ls[1].onclick=e=>{const b=e.target.closest('[data-q]');if(b){Q.splice(+b.dataset.q,1);o1()}};
+    q('#bx').onclick=top;
+    q('#bk').onclick=()=>{
+      const all=ld(K.c),cc=all.find(x=>x.id===id);if(!cc)return ov.remove();
+      const mv=Q.map(z=>({s:cc.cols[z.ci].s[z.ri],to:cc.cols[z.to]}));
+      const items=mv.map(m=>({n:m.s.n,c:m.s.c,to:m.to.data}));
+      applyMoves(cc,mv);
+      (cc.log=cc.log||[]).push({t:'mv',ts:Date.now(),dev:devName(),items});
+      sv(K.c,all);ov.remove();vedi(id,true);
+    };
+  };
+  const o1b=(ci,ri)=>{
+    const c=cal(),x=c.cols[ci].s[ri],ex=Q.find(z=>z.ci===ci&&z.ri===ri);
+    box.innerHTML='<h3>'+esc(x.n)+' '+esc(x.c)+'</h3><p class="mut" style="font-size:.85rem;margin:4px 0">Ora: '+dl(c.cols[ci].data)+'. Scegli la nuova data.</p><div class="prob-list">'
+     +c.cols.map((k,j)=>j===ci?'':'<label class="li"><input type="radio" name="nd" value="'+j+'"'+(ex&&ex.to===j?' checked':'')+'><span>'+dl(k.data)+'</span></label>').join('')
+     +'</div><p id="te" class="err"></p><div class="row"><button class="sec" id="bx">← Indietro</button><button id="bk">Continua</button></div>';
+    q('#bx').onclick=o1;
+    q('#bk').onclick=()=>{
+      const r=box.querySelector('input:checked');if(!r)return showErr(q('#te'),'Errore: scegli una data.');
+      Q=Q.filter(z=>!(z.ci===ci&&z.ri===ri));Q.push({ci,ri,to:+r.value});o1();
+    };
+  };
+  /* ---- 2: scelgo una data, poi dove mettere ognuno dei suoi studenti ---- */
+  const o2=()=>{
+    const c=cal();if(!c)return ov.remove();
+    busy=false;M={};
+    box.innerHTML='<h3>Sposta da una data</h3><p class="mut" style="font-size:.85rem;margin:4px 0">Scegli la data da cui spostare gli studenti.</p><div class="prob-list">'
+     +c.cols.map((k,j)=>'<label class="li"><input type="radio" name="sd" value="'+j+'"><span>'+dl(k.data)+'</span><small class="mut" style="margin-left:auto">'+k.s.length+' '+(k.s.length==1?'studente':'studenti')+'</small></label>').join('')
+     +'</div><p id="te" class="err"></p><div class="row"><button class="sec" id="bx">← Indietro</button><button id="bk">Continua</button></div>';
+    q('#bx').onclick=top;
+    q('#bk').onclick=()=>{const r=box.querySelector('input:checked');if(!r)return showErr(q('#te'),'Errore: scegli una data.');src=+r.value;M={};o2b()};
+  };
+  const lbl=a=>!a||!a.length?'Seleziona data':a.length===1?ds(cal().cols[a[0]].data):'🎲 Casuale ('+a.length+' date)';
+  const o2b=()=>{
+    const c=cal();if(!c)return ov.remove();
+    busy=true;const k=c.cols[src];
+    box.innerHTML='<h3>'+dl(k.data)+'</h3><p class="mut" style="font-size:.85rem;margin:4px 0">Per ogni studente scegli la nuova data: una sola = fissa, più date = scelta a caso tra quelle.</p><div class="prob-list">'
+     +k.s.map((x,i)=>'<div class="li"><span>'+esc(x.n)+' '+esc(x.c)+'</span><button class="'+(M[i]&&M[i].length?'okg':'sec')+' sb" data-i="'+i+'" style="margin-left:auto;padding:7px 14px;font-size:.8rem">'+lbl(M[i])+'</button></div>').join('')
+     +'</div><p id="te" class="err"></p><div class="row"><button class="sec" id="bx">← Indietro</button><button id="bk">Conferma</button></div>';
+    box.querySelector('.prob-list').onclick=e=>{const b=e.target.closest('.sb');if(b)pickM(+b.dataset.i)};
+    q('#bx').onclick=o2;
+    q('#bk').onclick=()=>{
+      const ks=Object.keys(M).filter(i=>M[i]&&M[i].length);
+      if(!ks.length)return showErr(q('#te'),'Errore: scegli la nuova data per almeno uno studente.');
+      const all=ld(K.c),cc=all.find(x=>x.id===id);if(!cc)return ov.remove();
+      const from=cc.cols[src].data,mv=[],items=[];
+      ks.forEach(i=>{
+        const x=cc.cols[src].s[i],ch=M[i],rnd=ch.length>1,j=rnd?pickRnd(cc,x,ch):ch[0];
+        mv.push({s:x,to:cc.cols[j]});items.push({n:x.n,c:x.c,to:cc.cols[j].data,rnd});
+      });
+      applyMoves(cc,mv);
+      (cc.log=cc.log||[]).push({t:'mvd',ts:Date.now(),dev:devName(),from,items});
+      sv(K.c,all);ov.remove();vedi(id,true);
+    };
+  };
+  const pickM=i=>{
+    const c=cal(),x=c.cols[src].s[i],cur=M[i]||[];
+    box.innerHTML='<h3>'+esc(x.n)+' '+esc(x.c)+'</h3><p class="mut" style="font-size:.85rem;margin:4px 0">Scegli una o più date. Con più date la nuova data è casuale'+(c.viaPref?', tenendo conto delle preferenze':'')+'.</p><div class="prob-list">'
+     +c.cols.map((k,j)=>j===src?'':'<label class="li"><input type="checkbox" class="rc" value="'+j+'"'+(cur.includes(j)?' checked':'')+'><span>'+dl(k.data)+'</span></label>').join('')
+     +'</div><div class="row"><button class="sec" id="bx">Annulla</button><button id="bk">Conferma</button></div>';
+    q('#bx').onclick=o2b;
+    q('#bk').onclick=()=>{const s=[...box.querySelectorAll('.rc:checked')].map(z=>+z.value);if(s.length)M[i]=s;else delete M[i];o2b()};
+  };
+  top();
 }
 function showLog(id){
   const c=ld(K.c).find(x=>x.id===id);if(!c)return;
   const L=c.log||[];
+  const dl=d=>esc(cap(DN[new Date(d+'T12:00:00').getDay()]))+' '+fmt(d);
+  const when=m=>{const t=m.ts||(typeof m.t==='number'?m.t:0);if(!t)return'';const d=new Date(t);
+    return esc(cap(d.toLocaleDateString('it-IT',{weekday:'long'})))+' '+fmt(d)+' alle '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})+(m.dev?' · '+esc(m.dev):'')};
+  /* una riga = nome a sinistra, nuova data a destra (eventuale nota sotto la data) */
+  const lr=(n,v,note,lab)=>'<div class="lr"><span class="lr-n">'+n+'</span><span class="lr-a">'+(lab?'<i></i><b>'+lab+'</b>':'')+'<i class="h"></i></span><span class="lr-v">'+v+(note?'<small>'+note+'</small>':'')+'</span></div>';
+  const row=(m,i)=>{
+    let ti,sub='',rows='';
+    if(m.t==='rem'){const ds=m.days||[m.day];ti=ds.length>1?'Giorni rimossi':'Giorno rimosso';sub='Riprogrammazione delle interrogazioni';rows=ds.map(d=>lr('Giorno rimosso',dl(d))).join('')}
+    else if(m.t==='mv'){ti='Spostamento studenti';rows=m.items.map(x=>lr(esc(x.n)+' '+esc(x.c),dl(x.to),'','NUOVA DATA')).join('')}
+    else if(m.t==='mvd'){ti='Spostamento da una data';sub='Da '+dl(m.from);rows=m.items.map(x=>lr(esc(x.n)+' '+esc(x.c),dl(x.to),x.rnd?'🎲 generata casualmente':'✋ scelta','NUOVA DATA')).join('')}
+    else{ti='Scambio';rows=lr((m.n1?esc(m.n1)+' ':'')+esc(m.c1),dl(m.d1),'','NUOVA DATA')+lr((m.n2?esc(m.n2)+' ':'')+esc(m.c2),dl(m.d2),'','NUOVA DATA')}
+    return '<div class="lg" style="animation-delay:'+(i*50)+'ms"><div class="log-n">'+(i+1)+'</div><div class="lg-b"><div class="log-t">'+ti+'</div>'+(sub?'<div class="lg-d">'+sub+'</div>':'')+(when(m)?'<div class="lg-t"><span>🕒 '+when(m)+'</span></div>':'')+'<div class="lg-rows">'+rows+'</div></div></div>';
+  };
   const o=document.createElement('div');o.className='ov';
-  o.innerHTML=`<div class="log-card"><h3>Modifiche effettuate</h3><div class="log-list">${L.length?L.map((m,i)=>m.t==='rem'?`<div class="log-item" style="animation-delay:${i*50}ms"><div class="log-n">${i+1}</div><div class="log-mid"><div class="log-t">${(m.days||[1]).length>1?'Giorni rimossi':'Giorno rimosso'}</div><div class="log-s">Riprogrammazione delle interrogazioni</div></div><div class="log-r" style="text-align:left"><div class="log-nd">${(m.days||[1]).length>1?'Giorni rimossi:':'Giorno rimosso:'}</div>${(m.days||[m.day]).map(d=>'<div>'+esc(cap(DN[new Date(d+'T12:00:00').getDay()]))+' '+fmt(d)+'</div>').join('')}</div></div>`:`<div class="log-item" style="animation-delay:${i*50}ms"><div class="log-n">${i+1}</div><div class="log-mid"><div class="log-t">Scambio</div><div class="log-s">${esc(m.c1)} <span>→</span> ${esc(m.c2)}</div></div><div class="log-r"><div class="log-nd">Nuove date:</div><div>${esc(m.c1)}: ${fmt(m.d1)}</div><div>${esc(m.c2)}: ${fmt(m.d2)}</div></div></div>`).join(''):'<p class="log-empty">Nessuna modifica effettuata.</p>'}</div><div class="row"><button class="sec" id="lb">← Indietro</button></div></div>`;
+  o.innerHTML='<div class="log-card"><h3>Modifiche effettuate</h3><div class="log-list">'+(L.length?L.map(row).join(''):'<p class="log-empty">Nessuna modifica effettuata.</p>')+'</div><div class="row"><button class="sec" id="lb">← Indietro</button></div></div>';
   document.body.appendChild(o);
   o.querySelector('#lb').onclick=()=>o.remove();
   o.onclick=e=>{if(e.target===o)o.remove()};
@@ -1081,7 +1239,7 @@ function swap(id){
   if(p[0]===q[0]&&p[1]===q[1])return err('Errore: hai scelto lo stesso studente due volte.');
   const t=c.cols[p[0]].s[p[1]],u=c.cols[q[0]].s[q[1]];
   c.cols[p[0]].s[p[1]]=u;c.cols[q[0]].s[q[1]]=t;
-  (c.log=c.log||[]).push({c1:t.c,c2:u.c,d1:c.cols[q[0]].data,d2:c.cols[p[0]].data,t:Date.now()});
+  (c.log=c.log||[]).push({c1:t.c,c2:u.c,n1:t.n,n2:u.n,d1:c.cols[q[0]].data,d2:c.cols[p[0]].data,t:Date.now(),dev:devName()});
   sv(K.c,all);vedi(id,true);
   const pk=p[0]+','+p[1],qk=q[0]+','+q[1];
   document.querySelectorAll('td').forEach(td=>{const a=td.dataset.c+','+td.dataset.r;if(a===pk||a===qk)td.classList.add('flash')});
