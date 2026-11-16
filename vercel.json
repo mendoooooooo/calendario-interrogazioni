@@ -1,0 +1,8 @@
+{
+  "crons": [
+    { "path": "/api/promemoria", "schedule": "0 8 * * 0" },
+    { "path": "/api/promemoria", "schedule": "0 9 * * 0" },
+    { "path": "/api/promemoria", "schedule": "0 12 * * *" },
+    { "path": "/api/promemoria", "schedule": "0 13 * * *" }
+  ]
+}

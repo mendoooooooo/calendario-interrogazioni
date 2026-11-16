@@ -47,7 +47,21 @@ async function loadServer(){
     if(d&&d.v&&d.v>LV)applySrv(d);
     else if(LV&&(!d||!d.v||LV>d.v))pushCloud();
     setBadge('☁️ Collegato al database');
+    loadMails();
   }catch(e){setBadge('📱 Solo su questo dispositivo ('+(e.message||'errore')+')')}
+}
+/* mail di studenti e prof: stanno sul server in una parte separata; qui arriva solo la versione nascosta (es. "ma•••@gmail.com") */
+let MAILS={};
+const mkS=(c,n)=>'s:'+nz(c)+'|'+nz(n),mkP=p=>'p:'+nz(p);
+const okMail=e=>/^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(e);
+async function loadMails(){try{const r=await fetch('/api/mail',{headers:{'x-key':KEY}});if(r.ok){MAILS=await r.json();if($('#ls'))rl()}}catch(e){}}
+async function setMail(k,e,from){
+  const r=await fetch('/api/mail',{method:'POST',headers:{'Content-Type':'application/json','x-key':KEY},body:JSON.stringify({k,e,from})});
+  let j={};try{j=await r.json()}catch(x){}
+  if(!r.ok)throw new Error(j.error||('errore '+r.status));
+  if(from&&from!==k)delete MAILS[from];
+  if(j.m)MAILS[k]=j.m;else delete MAILS[k];
+  return j;
 }
 const isEnter=e=>e.key==='Enter'||e.keyCode===13;
 let S={mat:null,studs:[],cfg:null},mem=null,CUR=null,curKey=null,restoring=false,rz=null;
