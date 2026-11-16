@@ -13,7 +13,7 @@ h2{margin:.3em 0 .8em}
 @keyframes outa{to{opacity:0;transform:translateY(22px) scale(.97)}}
 @keyframes in{from{opacity:0;transform:translateY(22px) scale(.97)}}
 .row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:18px 0}
-#emr[hidden]{display:none}
+#emr[hidden],#pfx[hidden]{display:none}
 button,.btn{font:inherit;font-weight:600;border:0;border-radius:14px;padding:13px 24px;color:#fff;background:linear-gradient(135deg,var(--ac),var(--ac2));cursor:pointer;box-shadow:0 6px 18px #2563eb55;transition:transform .2s,box-shadow .2s,filter .2s}
 button:hover:not(:disabled){transform:translateY(-3px) scale(1.04);box-shadow:0 12px 26px #2563eb80}
 button:active:not(:disabled){transform:scale(.97)}

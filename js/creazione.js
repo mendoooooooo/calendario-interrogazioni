@@ -7,7 +7,7 @@ function crea(m,keep){
   show(`<h2>Nuovo calendario: ${T(m)}</h2><div class="card create-head"><button class="back-circle" title="Torna indietro" onclick="home('crea')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button><h3>Aggiungi studenti</h3>
   <div class="row" style="margin:8px 0"><input id="n" placeholder="Nome" onkeydown="kS(event)"><input id="c" placeholder="Cognome" onkeydown="kS(event)"><label class="chk"><input type="checkbox" id="d" onkeydown="kS(event)"> DSA</label><button id="ab" onclick="addS()">Aggiungi</button></div><div class="row" id="emr" hidden style="margin:0 0 8px"><input id="em" type="email" autocomplete="off" placeholder="Email dello studente (facoltativa)" onkeydown="kS(event)"><button class="sec" id="emx" hidden onclick="S.emDel=1;$('#em').value='';$('#em').placeholder='Email verrà tolta: premi Salva';this.hidden=true">Togli email</button></div><p id="serr" class="form-err"></p>
   <ol id="ls"></ol>
-  <div class="row pr" style="margin:10px 0"><b>Prof.</b><input id="pf" placeholder="Cognome della docente" autocomplete="off" oninput="S.prof=this.value;rl();pfeUpd()"><input id="pfe" type="email" autocomplete="off" placeholder="Email della docente (facoltativa)" oninput="$('#lerr').textContent=''"></div>
+  <div class="row pr" style="margin:10px 0"><b>Prof.</b><input id="pf" placeholder="Cognome della docente" autocomplete="off" oninput="S.prof=this.value;rl();pfeUpd()"><input id="pfe" type="email" autocomplete="off" placeholder="Email della docente (facoltativa)" oninput="$('#lerr').textContent=''"><button class="sec" id="pfx" hidden onclick="S.pfDel=1;$('#pfe').value='';$('#pfe').placeholder='Email della docente verrà tolta: premi Salva';this.hidden=true">Togli email</button></div>
   <div class="row"><input id="ln" placeholder="Nome della lista" enterkeyhint="done" oninput="$('#lerr').textContent='';snewUpd()" onkeydown="if(isEnter(event)){event.preventDefault();saveL()}"><button onclick="saveL()">Salva</button><button class="sec" id="snew" hidden onclick="saveL(true)">Salva come nuova lista</button></div><p id="cur" class="mut" style="margin:0"></p><p id="lerr" class="err"></p><p id="lsuccess" class="success"></p></div>
   <div class="card" id="sl" hidden></div>
   <div class="row"><button class="sec" onclick="home('crea')">← Indietro</button><button class="sec" onclick="cambiaNome()">Cambia nome</button><button onclick="cfg()">Continua</button></div>`);
@@ -16,7 +16,7 @@ function crea(m,keep){
   {const pf=$('#pf');if(pf)pf.value=S.prof||''}
   pfeUpd();
 }
-function pfeUpd(){const x=$('#pfe');if(!x)return;const m=(S.prof||'').trim()&&MAILS[mkP(S.prof)];x.placeholder=m?'Email docente: '+m+' (scrivi per cambiarla)':'Email della docente (facoltativa)'}
+function pfeUpd(){const x=$('#pfe');if(!x)return;S.pfDel=0;const m=(S.prof||'').trim()&&MAILS[mkP(S.prof)];x.placeholder=m?'Email docente: '+m+' (scrivi per cambiarla)':'Email della docente (facoltativa)';const b=$('#pfx');if(b)b.hidden=!m}
 function snewUpd(){const b=$('#snew'),i=$('#ln');if(!b||!i)return;const k=i.value.trim().toLowerCase();b.hidden=!(k&&ld(K.l).some(x=>x.nome.trim().toLowerCase()===k))}
 function rsl(){
   snewUpd();
@@ -86,6 +86,7 @@ function saveL(nuova){
   const pe=(($('#pfe')||{}).value||'').trim().toLowerCase();
   if(pe&&!okMail(pe))return errL('Errore: l\'email della docente non è valida.');
   S.prof=p;
+  if(!pe&&S.pfDel)setMail(mkP(p),'').then(()=>{pfeUpd();rl()}).catch(x=>errL('Errore nel togliere l\'email della docente: '+x.message));
   if(pe)setMail(mkP(p),pe).then(()=>{const x=$('#pfe');if(x)x.value='';pfeUpd();rl()}).catch(x=>errL('Errore nel salvataggio dell\'email della docente: '+x.message));
   const l=ld(K.l),kk=x=>x.trim().toLowerCase(),idx=l.findIndex(x=>kk(x.nome)===kk(nome));let msg;
   if(nuova){
