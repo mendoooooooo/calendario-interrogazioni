@@ -122,6 +122,67 @@ function tabCard(id){
   };
   top();
 }
+/* ===== Aggiungi giorno di interrogazione =====
+   1) scelgo la nuova data  2) scelgo gli studenti da spostare in quella data (a mano o a caso).
+   Serve almeno uno studente: un giorno vuoto verrebbe eliminato alla modifica successiva. */
+function addCard(id){
+  const ov=document.createElement('div');ov.className='ov';
+  ov.innerHTML='<div class="card delete-card gate prob"></div>';
+  document.body.appendChild(ov);
+  const box=ov.firstChild,cal=()=>ld(K.c).find(x=>x.id===id),q=s=>box.querySelector(s);
+  const dl=d=>cap(DN[new Date(d+'T12:00:00').getDay()])+' '+fmt(d);
+  const ds=d=>cap(DN[new Date(d+'T12:00:00').getDay()]).slice(0,3)+' '+fmtShort(d);
+  let nd='',SEL=[];
+  ov.onclick=e=>{if(e.target===ov)ov.remove()};
+  const a1=()=>{
+    const c=cal();if(!c)return ov.remove();
+    box.innerHTML='<h3>Aggiungi giorno di interrogazione</h3><p class="mut" style="font-size:.85rem;margin:4px 0">Scegli la data da aggiungere al calendario.</p><input type="date" id="and" min="'+todayStr()+'" value="'+nd+'"><p id="adw" class="mut" style="margin:6px 0 0;font-size:.85rem"></p><p id="te" class="err"></p><div class="row"><button class="sec" id="bx">Annulla</button><button id="bk">Continua</button></div>';
+    const inp=q('#and'),w=q('#adw');
+    const upd=()=>{q('#te').textContent='';w.textContent=inp.value?dl(inp.value):''};
+    inp.oninput=upd;upd();
+    inp.onkeydown=e=>{if(isEnter(e)){e.preventDefault();q('#bk').click()}};
+    q('#bx').onclick=()=>ov.remove();
+    q('#bk').onclick=()=>{
+      const v=inp.value,te=q('#te');
+      if(!v)return showErr(te,'Errore: scegli una data.');
+      if(v<todayStr())return showErr(te,'Errore: la data non può essere nel passato.');
+      if(new Date(v+'T12:00:00').getDay()===0)return showErr(te,'Errore: il '+fmt(v)+' è una domenica.');
+      if(c.cols.some(k=>k.data===v))return showErr(te,'Errore: il '+fmt(v)+' è già nel calendario.');
+      if(nd!==v)SEL=[];
+      nd=v;a2();
+    };
+    inp.focus();
+  };
+  const a2=()=>{
+    const c=cal();if(!c)return ov.remove();
+    const pp=c.pp||Math.max(1,...c.cols.map(k=>k.s.length));
+    box.innerHTML='<h3>'+dl(nd)+'</h3><p class="mut" style="font-size:.85rem;margin:4px 0">Scegli gli studenti da spostare in questa data (almeno uno). Le date che restano senza studenti vengono tolte.</p><div class="row" style="margin:6px 0"><button class="sec" id="brn" style="padding:7px 14px;font-size:.8rem">🎲 Scegli '+pp+' a caso</button></div><div class="prob-list">'
+     +c.cols.map((k,ci)=>k.s.map((x,ri)=>'<label class="li"><input type="checkbox" class="rc" value="'+ci+':'+ri+'"'+(SEL.includes(ci+':'+ri)?' checked':'')+'><span>'+esc(x.n)+' '+esc(x.c)+'</span><small class="mut" style="margin-left:auto">'+ds(k.data)+'</small></label>').join('')).join('')
+     +'</div><p id="te" class="err"></p><div class="row"><button class="sec" id="bx">← Indietro</button><button id="bk">Conferma</button></div>';
+    const rd=()=>{SEL=[...box.querySelectorAll('.rc:checked')].map(z=>z.value);q('#te').textContent=''};
+    box.querySelectorAll('.rc').forEach(z=>{z.onchange=rd});
+    q('#brn').onclick=()=>{
+      const all=[...box.querySelectorAll('.rc')].map(z=>z.value);
+      for(let i=all.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[all[i],all[j]]=[all[j],all[i]]}
+      SEL=all.slice(0,pp);a2();
+    };
+    q('#bx').onclick=a1;
+    q('#bk').onclick=()=>{
+      rd();
+      if(!SEL.length)return showErr(q('#te'),'Errore: scegli almeno uno studente da spostare nel nuovo giorno.');
+      const all=ld(K.c),cc=all.find(x=>x.id===id);if(!cc)return ov.remove();
+      if(cc.cols.some(k=>k.data===nd)){showErr(q('#te'),'Errore: questa data è già nel calendario.');return}
+      const sel=SEL.map(v=>v.split(':').map(Number)).filter(([ci,ri])=>cc.cols[ci]&&cc.cols[ci].s[ri]);
+      const col={data:nd,s:[]},mv=sel.map(([ci,ri])=>({s:cc.cols[ci].s[ri],to:col}));
+      const items=sel.map(([ci,ri])=>({n:cc.cols[ci].s[ri].n,c:cc.cols[ci].s[ri].c,from:cc.cols[ci].data}));
+      cc.cols.push(col);cc.cols.sort((a,b)=>a.data<b.data?-1:a.data>b.data?1:0);
+      applyMoves(cc,mv);
+      (cc.log=cc.log||[]).push({t:'add',day:nd,ts:Date.now(),dev:devName(),items});
+      sv(K.c,all);ov.remove();vedi(id,true);
+    };
+  };
+  a1();
+}
 function showLog(id){
   const c=ld(K.c).find(x=>x.id===id);if(!c)return;
   const L=c.log||[];
@@ -136,6 +197,7 @@ function showLog(id){
     if(m.t==='rem'){const ds=m.days||[m.day];ti=ds.length>1?'Giorni rimossi':'Giorno rimosso';sub='Riprogrammazione delle interrogazioni';rows=ds.map(d=>lr('Giorno rimosso',dl(d))).join('')}
     else if(m.t==='mv'){ti='Spostamento studenti';rows=m.items.map(x=>lr(nm(x.n,x.c),dl(x.to),'','NUOVA DATA')).join('')}
     else if(m.t==='mvd'){ti='Spostamento da una data';sub='Da '+dl(m.from);rows=m.items.map(x=>lr(nm(x.n,x.c),dl(x.to),x.rnd?'🎲 generata casualmente':'✋ scelta','NUOVA DATA')).join('')}
+    else if(m.t==='add'){ti='Giorno aggiunto';sub='Nuovo giorno: '+dl(m.day);rows=m.items.map(x=>lr(nm(x.n,x.c),dl(m.day),'prima: '+dl(x.from),'NUOVA DATA')).join('')}
     else{ti='Scambio';rows=lr(m.n1?nm(m.n1,m.c1):esc(m.c1),dl(m.d1),'','NUOVA DATA')+lr(m.n2?nm(m.n2,m.c2):esc(m.c2),dl(m.d2),'','NUOVA DATA')}
     return '<div class="lg" style="animation-delay:'+(i*50)+'ms"><div class="log-n">'+(i+1)+'</div><div class="lg-b"><div class="log-t">'+ti+'</div>'+(sub?'<div class="lg-d">'+sub+'</div>':'')+(when(m)?'<div class="lg-t"><span>🕒 '+when(m)+'</span></div>':'')+'<div class="lg-rows">'+rows+'</div></div></div>';
   };
