@@ -1,6 +1,18 @@
 /* accesso per cognome */
 /* ===== accesso per cognome ===== */
-const ADMIN_PW='Mendo.2008';
+/* la password admin la controlla il server (variabile ADMIN_PW su Vercel): qui non c'è */
+async function checkAdmin(pw,btn,err){
+  if(!pw)return showErr(err,'Errore: scrivi la password.'),false;
+  if(btn)btn.disabled=true;
+  try{
+    const r=await fetch('/api/admin',{method:'POST',headers:{'Content-Type':'application/json','x-key':KEY},body:JSON.stringify({pw})});
+    let j={};try{j=await r.json()}catch(x){}
+    if(r.ok&&j.ok)return true;
+    showErr(err,r.status===401?'Errore: password errata.':(j.error||'Errore: controllo password non riuscito.'));
+  }catch(e){showErr(err,'Errore: serve la connessione a internet per l\'accesso admin.')}
+  finally{if(btn)btn.disabled=false}
+  return false;
+}
 function showErr(el,m){if(!el)return;el.textContent=m;el.classList.remove('err');void el.offsetWidth;el.classList.add('err')}
 function gate(o){
   const ov=document.createElement('div');ov.className='ov';
@@ -51,8 +63,8 @@ function gate(o){
   const askPw=()=>{
     box.innerHTML='<h3>Password</h3><p class="mut">Inserisci la password per continuare.</p><div class="row"><input id="gp" type="password" placeholder="Password" autocomplete="off" enterkeyhint="done"></div><p id="ge" class="err"></p><div class="row"><button class="sec" id="gb">← Indietro</button><button id="gk">Conferma</button></div>';
     const inp=box.querySelector('#gp'),ge=box.querySelector('#ge');
-    const go=()=>{
-      if(inp.value!==ADMIN_PW)return showErr(ge,'Errore: password errata.');
+    const go=async()=>{
+      if(!await checkAdmin(inp.value,box.querySelector('#gk'),ge))return;
       ACC.adm=true;ACC.c='';ACC.n='';ACC.prof=false;saveAcc();
       done(o.mode);
     };

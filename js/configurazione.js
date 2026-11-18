@@ -169,8 +169,8 @@ function voteCard(id,pw,editIdx){
   const askP=()=>{
     box.innerHTML='<h3>Password admin</h3><p class="mut">Inserisci la password per continuare.</p><div class="row"><input id="vp" type="password" placeholder="Password" autocomplete="off" enterkeyhint="done"></div><p id="ve" class="err"></p><div class="row"><button class="sec" id="vx">← Indietro</button><button id="vk">Conferma</button></div>';
     const inp=box.querySelector('#vp'),ve=box.querySelector('#ve');
-    const go=()=>{
-      if(inp.value!==ADMIN_PW)return showErr(ve,'Errore: password errata.');
+    const go=async()=>{
+      if(!await checkAdmin(inp.value,box.querySelector('#vk'),ve))return;
       ad=true;askS();
     };
     box.querySelector('#vk').onclick=go;box.querySelector('#vx').onclick=()=>{ad=false;askC()};
